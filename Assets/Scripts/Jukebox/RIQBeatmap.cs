@@ -59,7 +59,7 @@ namespace Jukebox
                 e.data.length = tempo.length;
 
                 e.CreateProperty("tempo", tempo.tempo);
-                e.CreateProperty("swing", 0d);
+                e.CreateProperty("swing", 0f);
             }
 
             volumeChanges = new List<RiqEntity>();
