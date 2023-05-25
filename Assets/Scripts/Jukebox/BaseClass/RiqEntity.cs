@@ -3,6 +3,8 @@ using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 
+using FullSerializer;
+
 namespace Jukebox
 {
     public class RiqEntity
@@ -12,7 +14,7 @@ namespace Jukebox
         public RiqEntity()
         {
             data = new RiqEntityData();
-            data.DynamicData = new();
+            data.dynamicData = new();
         }
 
         public RiqEntity(RiqEntity other)
@@ -38,8 +40,8 @@ namespace Jukebox
                     case "datamodel":
                         return data.datamodel;
                     default:
-                        if (data.DynamicData.ContainsKey(propertyName))
-                            return data.DynamicData[propertyName];
+                        if (data.dynamicData.ContainsKey(propertyName))
+                            return data.dynamicData[propertyName];
                         else
                         {
                             return null;
@@ -55,13 +57,19 @@ namespace Jukebox
                     case "datamodel":
                         throw new Exception($"Property name {propertyName} is reserved and cannot be set.");
                     default:
-                        if (data.DynamicData.ContainsKey(propertyName))
-                            data.DynamicData[propertyName] = value;
+                        if (data.dynamicData.ContainsKey(propertyName))
+                            data.dynamicData[propertyName] = value;
                         else
                             throw new Exception($"This entity does not have a property named {propertyName}! Attempted to insert value of type {value.GetType()}");
                         break;
                 }
             }
+        }
+
+        public void CreateProperty(string name, object defaultValue)
+        {
+            if (!data.dynamicData.ContainsKey(name))
+                data.dynamicData.Add(name, defaultValue);
         }
     }
     
@@ -69,9 +77,10 @@ namespace Jukebox
     public struct RiqEntityData
     {
         public string type;
+        public int version;
         public double beat;
         public float length;
         public string datamodel;
-        public Dictionary<string, object> DynamicData;
+        public Dictionary<string, dynamic> dynamicData;
     }
 }
