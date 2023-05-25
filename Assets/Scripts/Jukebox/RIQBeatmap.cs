@@ -79,8 +79,8 @@ namespace Jukebox
             foreach (DynamicBeatmap.ChartSection section in riq.beatmapSections)
             {
                 RiqEntity e = new RiqEntity();
-                e.data.datamodel = "global/section";
-                e.data.type = "riq__Section";
+                e.data.datamodel = "global/section marker";
+                e.data.type = "riq__SectionMarker";
                 e.data.version = 0;
                 e.data.beat = section.beat;
                 e.data.length = 0;
