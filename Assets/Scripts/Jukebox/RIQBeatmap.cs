@@ -152,6 +152,20 @@ namespace Jukebox
             }
 
             data.tempoChanges = new List<RiqEntity>();
+            
+            // create an initial tempo change
+            RiqEntity initialTempo = new RiqEntity();
+            initialTempo.type = "riq__TempoChange";
+            initialTempo.datamodel = "global/tempo change";
+            initialTempo.version = 0;
+            initialTempo.beat = 0d;
+            initialTempo.length = 0f;
+
+            initialTempo.CreateProperty("tempo", riq.bpm);
+            initialTempo.CreateProperty("swing", 0f);
+
+            data.tempoChanges.Add(initialTempo);
+
             foreach (DynamicBeatmap.TempoChange tempo in riq.tempoChanges)
             {
                 RiqEntity e = new RiqEntity();
@@ -168,6 +182,19 @@ namespace Jukebox
             }
 
             data.volumeChanges = new List<RiqEntity>();
+            // create an initial volume change
+            RiqEntity initialVolume = new RiqEntity();
+            initialVolume.datamodel = "global/volume change";
+            initialVolume.type = "riq__VolumeChange";
+            initialVolume.version = 0;
+            initialVolume.beat = 0;
+            initialVolume.length = 0;
+
+            initialVolume.CreateProperty("volume", riq.musicVolume);
+            initialVolume.CreateProperty("fade", EasingFunction.Ease.Instant);
+
+            data.volumeChanges.Add(initialVolume);
+
             foreach (DynamicBeatmap.VolumeChange volume in riq.volumeChanges)
             {
                 RiqEntity e = new RiqEntity();
@@ -178,6 +205,7 @@ namespace Jukebox
                 e.length = volume.length;
 
                 e.CreateProperty("volume", volume.volume);
+                e.CreateProperty("fade", EasingFunction.Ease.Instant);
 
                 data.volumeChanges.Add(e);
             }
@@ -195,6 +223,9 @@ namespace Jukebox
                 e.CreateProperty("sectionName", section.sectionName);
                 e.CreateProperty("isCheckpoint", section.isCheckpoint);
                 e.CreateProperty("startPerfect", section.startPerfect);
+                e.CreateProperty("breakSection", false);
+                e.CreateProperty("sectionWeight", 1f);
+                e.CreateProperty("extendsPrevious", false);
 
                 data.beatmapSections.Add(e);
             }
