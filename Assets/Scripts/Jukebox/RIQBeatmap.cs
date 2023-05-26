@@ -15,7 +15,7 @@ namespace Jukebox
 
         public RiqBeatmap(string json)
         {
-            Debug.Log(json);
+            if (json == string.Empty || json == null) throw new ArgumentNullException("json", "json cannot be null or empty");
 
             // scan the json to check if we need to do conversion
             // if the json is missing the "riqVersion" property, it's a v0 riq
