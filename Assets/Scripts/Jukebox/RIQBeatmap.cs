@@ -8,7 +8,7 @@ using Jukebox.Legacy;
 
 namespace Jukebox
 {
-    public class RIQBeatmap : MonoBehaviour
+    public class RiqBeatmap : MonoBehaviour
     {
         public RiqBeatmapData data;
     }
