@@ -4,19 +4,20 @@ using System.ComponentModel;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
-using FullSerializer;
+using Newtonsoft.Json;
 
 namespace Jukebox.Legacy
 {
     [Serializable]
-    [fsObject(VersionString = "0", PreviousModels = new Type[] { typeof(Beatmap) })]
     public class DynamicBeatmap
     {
-        public DynamicBeatmap(Beatmap beatmap)
+        public static DynamicBeatmap ConvertFromTengoku(Beatmap beatmap)
         {
-            bpm = beatmap.bpm;
-            musicVolume = beatmap.musicVolume;
-            firstBeatOffset = beatmap.firstBeatOffset;
+            Debug.Log("Updating tengoku / rhmania to \"v0\" riq (DynamicBeatmap)");
+            DynamicBeatmap db = new DynamicBeatmap();
+            db.bpm = beatmap.bpm;
+            db.musicVolume = beatmap.musicVolume;
+            db.firstBeatOffset = beatmap.firstBeatOffset;
 
             foreach (Beatmap.Entity entity in beatmap.entities)
             {
@@ -49,7 +50,7 @@ namespace Jukebox.Legacy
                 e.DynamicData.Add("text2", entity.text2);
                 e.DynamicData.Add("text3", entity.text3);
 
-                entities.Add(e);
+                db.entities.Add(e);
             }
 
             foreach (Beatmap.TempoChange tempo in beatmap.tempoChanges)
@@ -59,7 +60,7 @@ namespace Jukebox.Legacy
                 t.length = tempo.length;
                 t.tempo = tempo.tempo;
 
-                tempoChanges.Add(t);
+                db.tempoChanges.Add(t);
             }
 
             foreach (Beatmap.VolumeChange volume in beatmap.volumeChanges)
@@ -69,14 +70,18 @@ namespace Jukebox.Legacy
                 v.length = volume.length;
                 v.volume = volume.volume;
 
-                volumeChanges.Add(v);
+                db.volumeChanges.Add(v);
             }
+
+            Debug.Log("Updating tengoku / rhmania to \"v0\" riq (DynamicBeatmap) - done");
+            return db;
         }
 
 
         public static int CurrentRiqVersion = 0;
         public float bpm;
 
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
         [DefaultValue(100)] public int musicVolume; // In percent (1-100)
         
         public Dictionary<string, object> properties = 
@@ -141,8 +146,8 @@ namespace Jukebox.Legacy
         {
             public float beat;
             public int track;
-            public float length;
-            public float swing;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public float length;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public float swing;
             public Dictionary<string, dynamic> DynamicData = new Dictionary<string, dynamic>();
 
             public string datamodel;

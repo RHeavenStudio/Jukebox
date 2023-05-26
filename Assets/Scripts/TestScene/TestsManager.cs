@@ -5,6 +5,7 @@ using UnityEngine;
 using TMPro;
 
 using Jukebox;
+using Newtonsoft.Json;
 
 namespace Jukebox.Tests
 {
@@ -12,6 +13,8 @@ namespace Jukebox.Tests
     {
         [SerializeField] TMP_InputField pathInput;
         [SerializeField] TMP_Text statusTxt;
+
+        RiqBeatmap beatmap;
 
         // Start is called before the first frame update
         void Start()
@@ -25,10 +28,29 @@ namespace Jukebox.Tests
             try
             {
                 string tmpDir = RIQReader.ExtractRiq(path);
+                beatmap = RIQReader.ReadRiq();
+
+                // foreach (RiqEntity entity in beatmap.data.entities)
+                // {
+                //     Debug.Log(JsonConvert.SerializeObject(entity, Formatting.Indented));
+                // }
             }
             catch (System.Exception e)
             {
                 statusTxt.text = $"Error importing RIQ: {e.Message}";
+            }
+        }
+
+        public void OnCreatePressed()
+        {
+            if (beatmap == null)
+            {
+                RiqBeatmap newBeatmap = new RiqBeatmap();
+                GUIUtility.systemCopyBuffer = newBeatmap.Serialize();
+            }
+            else
+            {
+                GUIUtility.systemCopyBuffer = beatmap.Serialize();
             }
         }
     }

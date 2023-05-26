@@ -3,12 +3,11 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using UnityEngine;
 
-using FullSerializer;
+using Newtonsoft.Json;
 
 namespace Jukebox.Legacy
 {
     [Serializable]
-    [fsObject(VersionString = "-1")]
     public class Beatmap
     {
         public float bpm;
@@ -28,28 +27,28 @@ namespace Jukebox.Legacy
 
             // consideration: use arrays instead of hardcoding fixed parameter names
             // note from zeo: yeah definately use arrays
-            public float length;
-            public float valA;
-            public float valB;
-            public float valC;
-            public bool toggle;
-            public int type;
-            public int type2;
-            public int type3;
-            public int type4;
-            public int type5;
-            public int type6;
-            public EasingFunction.Ease ease;
-            public Color colorA;
-            public Color colorB;
-            public Color colorC;
-            public Color colorD;
-            public Color colorE;
-            public Color colorF;
-            public string text1;
-            public string text2;
-            public string text3;
-            public float swing;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public float length;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public float valA;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public float valB;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public float valC;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public bool toggle;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public int type;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public int type2;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public int type3;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public int type4;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public int type5;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public int type6;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public EasingFunction.Ease ease;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public Color colorA;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public Color colorB;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public Color colorC;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public Color colorD;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public Color colorE;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public Color colorF;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public string text1;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public string text2;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public string text3;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)] public float swing;
             public string datamodel;
 
             public object Clone()

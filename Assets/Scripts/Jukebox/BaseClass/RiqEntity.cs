@@ -1,30 +1,33 @@
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 
-using FullSerializer;
+using Newtonsoft.Json;
 
 namespace Jukebox
 {
-    public class RiqEntity
+    [Serializable]
+    public struct RiqEntity
     {
-        public RiqEntityData data;
+        public string type;
+        public int version;
+        public string datamodel;
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)] public double beat;
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)] public float length;
+        public Dictionary<string, dynamic> dynamicData;
 
-        public RiqEntity()
+        public RiqEntity DeepCopy()
         {
-            data = new RiqEntityData();
-            data.dynamicData = new();
-        }
-
-        public RiqEntity(RiqEntity other)
-        {
-            this.data = other.data;
-        }
-
-        public object DeepCopy()
-        {
-            return new RiqEntity(this);
+            RiqEntity copy = new RiqEntity();
+            copy.type = type;
+            copy.version = version;
+            copy.beat = beat;
+            copy.length = length;
+            copy.datamodel = datamodel;
+            copy.dynamicData = new Dictionary<string, dynamic>(dynamicData);
+            return copy;
         }
 
         public object this[string propertyName]
@@ -34,14 +37,14 @@ namespace Jukebox
                 switch (propertyName)
                 {
                     case "beat":
-                        return data.beat;
+                        return beat;
                     case "length":
-                        return data.length;
+                        return length;
                     case "datamodel":
-                        return data.datamodel;
+                        return datamodel;
                     default:
-                        if (data.dynamicData.ContainsKey(propertyName))
-                            return data.dynamicData[propertyName];
+                        if (dynamicData.ContainsKey(propertyName))
+                            return dynamicData[propertyName];
                         else
                         {
                             return null;
@@ -57,8 +60,8 @@ namespace Jukebox
                     case "datamodel":
                         throw new Exception($"Property name {propertyName} is reserved and cannot be set.");
                     default:
-                        if (data.dynamicData.ContainsKey(propertyName))
-                            data.dynamicData[propertyName] = value;
+                        if (dynamicData.ContainsKey(propertyName))
+                            dynamicData[propertyName] = value;
                         else
                             throw new Exception($"This entity does not have a property named {propertyName}! Attempted to insert value of type {value.GetType()}");
                         break;
@@ -68,19 +71,11 @@ namespace Jukebox
 
         public void CreateProperty(string name, object defaultValue)
         {
-            if (!data.dynamicData.ContainsKey(name))
-                data.dynamicData.Add(name, defaultValue);
+            if (dynamicData == null)
+                dynamicData = new();
+            
+            if (!dynamicData.ContainsKey(name))
+                dynamicData.Add(name, defaultValue);
         }
-    }
-    
-    [Serializable]
-    public struct RiqEntityData
-    {
-        public string type;
-        public int version;
-        public double beat;
-        public float length;
-        public string datamodel;
-        public Dictionary<string, dynamic> dynamicData;
     }
 }
