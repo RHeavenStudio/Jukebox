@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Networking;
 
 using Newtonsoft.Json;
 
@@ -11,6 +12,15 @@ namespace Jukebox
     public class RIQReader
     {
         static string tmpDir = Application.temporaryCachePath + "/RIQCache/";
+        static AudioClip audioClip;
+
+        public static AudioClip LoadedAudioClip
+        {
+            get
+            {
+                return audioClip;
+            }
+        }
 
         /// <summary>
         /// Extracts the contents of a RIQ file into a temporary directory.
@@ -25,6 +35,8 @@ namespace Jukebox
 
             try
             {
+                if (Directory.Exists(tmpDir))
+                    Directory.Delete(tmpDir, true);
                 ZipFile.ExtractToDirectory(path, tmpDir, true);
             }
             catch (System.Exception e)
@@ -50,7 +62,28 @@ namespace Jukebox
             string json = File.ReadAllText(jsonPath);
             RiqBeatmap beatmap = new RiqBeatmap(json);
 
+            Debug.Log(tmpDir);
             return beatmap;
+        }
+
+        public static IEnumerator LoadSong()
+        {
+            string url = "file://" + tmpDir + "song.ogg";
+            audioClip = null;
+            if (!File.Exists(tmpDir + "song.ogg")) throw new System.IO.FileNotFoundException("path", $"Chart song file does not exist at path {tmpDir + "song.ogg"}");
+            using (var www = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.UNKNOWN))
+            {
+                yield return www.SendWebRequest();
+            
+                if (www.result == UnityWebRequest.Result.ConnectionError)
+                {
+                    Debug.Log($"error loading song: {www.error}");
+                    yield break;
+                }
+                ((DownloadHandlerAudioClip)www.downloadHandler).streamAudio = true;
+                audioClip = ((DownloadHandlerAudioClip)www.downloadHandler).audioClip;
+                yield return null;
+            }
         }
     }
 }
