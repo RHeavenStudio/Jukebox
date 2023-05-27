@@ -62,12 +62,19 @@ namespace Jukebox
             {
                 TypeNameHandling = TypeNameHandling.Objects,
             });
+
+            // TODO: updating of entities using user-defined methods
+            foreach (RiqEntity entity in data.entities)
+            {
+                
+            }
         }
 
         public RiqBeatmap()
         {
             data = new RiqBeatmapData();
             data.riqVersion = "1";
+            data.riqOrigin = "HeavenStudio";
             data.properties = 
             new Dictionary<string, object>() {
                     {"propertiesmodified", false},
@@ -126,6 +133,84 @@ namespace Jukebox
             });
         }
 
+        public RiqEntity AddNewEntity(string datamodel, double beat, float length)
+        {
+            RiqEntity e = new RiqEntity()
+            {
+                type = "riq__Entity",
+                datamodel = datamodel,
+                version = 0,
+                beat = beat,
+                length = length,
+                dynamicData = new(),
+            };
+
+            e.CreateProperty("track", 0);
+            data.entities.Add(e);
+            return e;
+        }
+
+        public RiqEntity AddNewTempoChange(double beat, float tempo)
+        {
+            RiqEntity e = new RiqEntity()
+            {
+                type = "riq__TempoChange",
+                datamodel = "global/tempo change",
+                version = 0,
+                beat = beat,
+                length = 0f,
+                dynamicData = new(),
+            };
+
+            e.CreateProperty("tempo", tempo);
+            e.CreateProperty("swing", 0f);
+
+            data.tempoChanges.Add(e);
+            return e;
+        }
+
+        public RiqEntity AddNewVolumeChange(double beat, float volume)
+        {
+            RiqEntity e = new RiqEntity()
+            {
+                type = "riq__VolumeChange",
+                datamodel = "global/volume change",
+                version = 0,
+                beat = beat,
+                length = 0f,
+                dynamicData = new(),
+            };
+
+            e.CreateProperty("volume", volume);
+            e.CreateProperty("fade", EasingFunction.Ease.Instant);
+
+            data.volumeChanges.Add(e);
+            return e;
+        }
+
+        public RiqEntity AddNewSectionMarker(double beat, string sectionName)
+        {
+            RiqEntity e = new RiqEntity()
+            {
+                type = "riq__SectionMarker",
+                datamodel = "global/section marker",
+                version = 0,
+                beat = beat,
+                length = 0,
+                dynamicData = new(),
+            };
+
+            e.CreateProperty("sectionName", sectionName);
+            e.CreateProperty("isCheckpoint", false);
+            e.CreateProperty("startPerfect", false);
+            e.CreateProperty("breakSection", false);
+            e.CreateProperty("sectionWeight", 1f);
+            e.CreateProperty("extendsPrevious", false);
+
+            data.beatmapSections.Add(e);
+            return e;
+        }
+
         public static RiqBeatmapData ConvertFromDynamicBeatmap(DynamicBeatmap riq)
         {
             Debug.Log("Updating \"v0\" riq (DynamicBeatmap) to \"v1\" riq (RiqBeatmapData)");
@@ -147,6 +232,8 @@ namespace Jukebox
                 e.dynamicData = new(entity.DynamicData);
 
                 e.CreateProperty("track", entity.track);
+
+                // TODO: updating entities using user-defined methods
 
                 data.entities.Add(e);
             }

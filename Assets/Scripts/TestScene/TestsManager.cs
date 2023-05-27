@@ -26,7 +26,7 @@ namespace Jukebox.Tests
 
         RiqBeatmap beatmap;
         float audioLength;
-        double sampleRate;
+        double scheduledTime;
 
         // Start is called before the first frame update
         private void Start()
@@ -37,8 +37,8 @@ namespace Jukebox.Tests
         private void Update() {
             if (audioSource.isPlaying)
             {
-                double time = audioSource.timeSamples * sampleRate;
-                musicSlider.value = (float)time / audioLength;
+                double time = AudioSettings.dspTime - scheduledTime;
+                musicSlider.value = (float)(time / audioLength);
                 TimeSpan t = TimeSpan.FromSeconds(time);
                 songProgressFormatted.text = $"{t.Minutes:D2}:{t.Seconds:D2}";
                 songProgressSeconds.text = $"{time:0.000} / {audioLength:0.000}";
@@ -47,10 +47,9 @@ namespace Jukebox.Tests
 
         IEnumerator LoadMusic()
         {
-            yield return RIQReader.LoadSong();
-            audioSource.clip = RIQReader.LoadedAudioClip;
+            yield return RiqFileHandler.LoadSong();
+            audioSource.clip = RiqFileHandler.LoadedAudioClip;
             audioLength = audioSource.clip.length;
-            sampleRate = 1.0 / audioSource.clip.frequency;
             musicSlider.value = 0;
         }
 
@@ -59,8 +58,8 @@ namespace Jukebox.Tests
             string path = pathInput.text;
             try
             {
-                string tmpDir = RIQReader.ExtractRiq(path);
-                beatmap = RIQReader.ReadRiq();
+                string tmpDir = RiqFileHandler.ExtractRiq(path);
+                beatmap = RiqFileHandler.ReadRiq();
 
                 StartCoroutine(LoadMusic());
             }
@@ -93,9 +92,11 @@ namespace Jukebox.Tests
 
         public void OnPlayPressed()
         {
+            Debug.Log(beatmap.data.offset);
             statusTxt.text = "Now Playing";
-            audioSource.time = musicSlider.value * audioLength;
-            audioSource.Play();
+            scheduledTime = AudioSettings.dspTime - (musicSlider.value * audioLength) - beatmap.data.offset;
+            audioSource.time = Mathf.Max((musicSlider.value * audioLength) + (float)beatmap.data.offset, 0f);
+            audioSource.PlayScheduled(scheduledTime);
         }
 
         public void OnPausePressed()
