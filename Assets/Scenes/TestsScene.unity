@@ -1568,7 +1568,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 1505421145}
         m_TargetAssemblyTypeName: Jukebox.Tests.TestsManager, Assembly-CSharp
-        m_MethodName: OnCreatePressed
+        m_MethodName: OnPackPressed
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -2235,7 +2235,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f323178f95dd6f34090beb42c1c377c3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pathInput: {fileID: 0}
   statusTxt: {fileID: 671221401}
   musicSlider: {fileID: 1265317155}
   songProgressFormatted: {fileID: 1472297239}
