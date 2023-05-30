@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 using TMPro;
+using SFB;
 
 using Jukebox;
 using Newtonsoft.Json;
@@ -13,7 +14,6 @@ namespace Jukebox.Tests
 {
     public class TestsManager : MonoBehaviour
     {
-        [SerializeField] TMP_InputField pathInput;
         [SerializeField] TMP_Text statusTxt;
 
         [SerializeField] Slider musicSlider;
@@ -55,20 +55,25 @@ namespace Jukebox.Tests
 
         public void OnImportPressed()
         {
-            string path = pathInput.text;
+            var extensions = new [] {
+                new ExtensionFilter("RIQ-compatible", "riq", "tengoku", "rhmania"),
+            };
+            var paths = StandaloneFileBrowser.OpenFilePanel("Open File", "", extensions, false);
             try
             {
-                string tmpDir = RiqFileHandler.ExtractRiq(path);
+                if (paths.Length == 0) return;
+                string tmpDir = RiqFileHandler.ExtractRiq(paths[0]);
                 beatmap = RiqFileHandler.ReadRiq();
 
                 StartCoroutine(LoadMusic());
+                statusTxt.text = "Imported RIQ successfully!";
+                return;
             }
             catch (System.Exception e)
             {
                 statusTxt.text = $"Error importing RIQ: {e.Message}";
                 return;
             }
-            statusTxt.text = "Imported RIQ successfully!";
         }
 
         public void OnCreatePressed()
@@ -81,6 +86,22 @@ namespace Jukebox.Tests
             else
             {
                 GUIUtility.systemCopyBuffer = beatmap.Serialize();
+            }
+        }
+
+        public void OnPackPressed()
+        {
+            var path = StandaloneFileBrowser.SaveFilePanel("Save packed RIQ", "", "remix", "riq");
+            try
+            {
+                RiqFileHandler.PackRiq(path);
+                statusTxt.text = "Packed RIQ successfully!";
+                return;
+            }
+            catch (System.Exception e)
+            {
+                statusTxt.text = $"Error packing RIQ: {e.Message}";
+                return;
             }
         }
 

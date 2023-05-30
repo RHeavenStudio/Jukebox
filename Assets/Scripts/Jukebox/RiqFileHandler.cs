@@ -84,16 +84,58 @@ namespace Jukebox
             string url = "file://" + tmpDir + "song.bin";
             audioClip = null;
             if (!File.Exists(tmpDir + "song.bin")) throw new System.IO.FileNotFoundException("path", $"Chart song file does not exist at path {tmpDir + "song.bin"}");
-            using (var www = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.UNKNOWN))
+            
+            AudioType audioType = AudioType.UNKNOWN;
+            // determine audio type based on file contents
+            // todo: put in own method
+            using (FileStream fs = File.OpenRead(tmpDir + "song.bin"))
             {
+                byte[] buffer = new byte[4];
+                fs.Read(buffer, 0, 4);
+                if (System.Text.Encoding.UTF8.GetString(buffer) == "OggS")
+                {
+                    audioType = AudioType.OGGVORBIS;
+                }
+                else if (System.Text.Encoding.UTF8.GetString(buffer) == "RIFF")
+                {
+                    fs.Read(buffer, 8, 12);
+                    if (System.Text.Encoding.UTF8.GetString(buffer) == "WAVE")
+                        audioType = AudioType.WAV;
+                }
+                else 
+                {
+                    // fs.Read(buffer, 0, 3);
+                        // THIS WON'T ALWAYS WORK
+                        // todo: use file extension as last-ditch effort to determine audio type
+                        // todo: other formats like flac? (we may need ffmpeg to convert these to wav or ogg, do that on the import step)
+                    // if (System.Text.Encoding.UTF8.GetString(buffer) == "ID3")
+                    // {
+                        audioType = AudioType.MPEG;
+                    // }
+                    // else
+                    // {
+                    //     Debug.LogError("Unknown audio type");
+                    //     yield return null;
+                    // }
+                }
+            }                      
+
+            using (var www = UnityWebRequestMultimedia.GetAudioClip(url, audioType))
+            {
+                ((DownloadHandlerAudioClip)www.downloadHandler).streamAudio = true;
                 yield return www.SendWebRequest();
+
+                while(www.result != UnityWebRequest.Result.ConnectionError && www.downloadedBytes <= 1024)
+                {
+                    yield return null;
+                }
             
                 if (www.result == UnityWebRequest.Result.ConnectionError)
                 {
                     Debug.Log($"error loading song: {www.error}");
                     yield break;
                 }
-                ((DownloadHandlerAudioClip)www.downloadHandler).streamAudio = true;
+                Debug.Log("loaded song");
                 audioClip = ((DownloadHandlerAudioClip)www.downloadHandler).audioClip;
                 yield return null;
             }
@@ -143,18 +185,18 @@ namespace Jukebox
         }
 
         /// <summary>
-        /// 
+        /// packs the contents of the temporary cache into a .riq file
         /// </summary>
-        /// <param name="destPath"></param>
+        /// <param name="destPath">where the new .riq will be saved to</param>
         public static void PackRiq(string destPath)
         {
             if (tmpDir == string.Empty || tmpDir == null) throw new System.ArgumentNullException("path", "temporary directory cannot be null or empty");
             if (destPath == string.Empty || destPath == null) throw new System.ArgumentNullException("path", "destination path cannot be null or empty");
 
             string jsonPath = tmpDir + "remix.json";
-            if (!File.Exists(jsonPath)) throw new System.IO.FileNotFoundException("path", $"riq chart file does not exist at path {jsonPath}, was an RIQ file properly extracted?");
+            if (!File.Exists(jsonPath)) throw new System.IO.FileNotFoundException("path", $"riq chart file does not exist at path {jsonPath}, was an RIQ file properly created?");
 
-            ZipFile.CreateFromDirectory(tmpDir, destPath);
+            ZipFile.CreateFromDirectory(tmpDir, destPath, System.IO.Compression.CompressionLevel.Optimal, false);
         }
     }
 }
