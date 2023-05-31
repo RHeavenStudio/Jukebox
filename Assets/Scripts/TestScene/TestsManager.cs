@@ -24,9 +24,12 @@ namespace Jukebox.Tests
         [SerializeField] Button stopBtn;
         [SerializeField] AudioSource audioSource;
 
+        [SerializeField] RawImage waveformImg;
+
         RiqBeatmap beatmap;
         float audioLength;
         double scheduledTime;
+        float currentChunkTime;
 
         // Start is called before the first frame update
         private void Start()
@@ -48,9 +51,63 @@ namespace Jukebox.Tests
         IEnumerator LoadMusic()
         {
             yield return RiqFileHandler.LoadSong();
-            audioSource.clip = RiqFileHandler.LoadedAudioClip;
+            audioSource.clip = RiqFileHandler.StreamedAudioClip;
             audioLength = audioSource.clip.length;
             musicSlider.value = 0;
+            songProgressSeconds.text = $"0.000 / {audioLength:0.000}";
+            currentChunkTime = 0f;
+            DrawWaveformChunk(currentChunkTime);
+        }
+
+        private void DrawWaveformChunk(float startTime)
+        {
+            Vector2 imgSize = waveformImg.GetPixelAdjustedRect().size;
+            StartCoroutine(PaintWaveformSpectrum(startTime, 1f, Mathf.RoundToInt(imgSize.x), Mathf.RoundToInt(imgSize.y), Color.yellow));
+        }
+
+        // https://answers.unity.com/questions/1603418/how-to-create-waveform-texture-from-audioclip.html
+        // and
+        // https://answers.unity.com/questions/699595/how-to-generate-waveform-from-audioclip.html
+        // with modifications to only render chunks of audio
+        public IEnumerator PaintWaveformSpectrum(float startTime, float length, int width, int height, Color col) {
+            AudioClip audio = RiqFileHandler.StreamedAudioClip;
+            if (audio == null) yield break;
+
+            int sampleRate = audio.frequency;
+            int channels = audio.channels;
+            int numSamples = Mathf.RoundToInt(length * sampleRate);
+
+            Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+
+            yield return RiqFileHandler.GetSongSamples(Mathf.RoundToInt(startTime * sampleRate), numSamples);
+            float[] samples = RiqFileHandler.LastSongChunk;
+            if (samples == null) yield break;
+
+            float[] waveform = new float[width];
+            float packSize = ((float)samples.Length / (float)width);
+            int waveIdx = 0;
+            for (float i = 0; Mathf.RoundToInt(i) < samples.Length && waveIdx < waveform.Length; i += packSize)
+            {
+                waveform[waveIdx] = Mathf.Abs(samples[Mathf.RoundToInt(i)]);
+                waveIdx++;
+            }
+        
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++) {
+                    tex.SetPixel(x, y, Color.black);
+                }
+            }
+
+            waveformImg.texture = tex;
+            for (int x = 0; x < waveform.Length; x++) {
+                for (int y = 0; y <= waveform[x] * ((float)height * .75f); y++) {
+                    tex.SetPixel(x, ( height / 2 ) + y, col);
+                    tex.SetPixel(x, ( height / 2 ) - y, col);
+                }
+                // tex.Apply();
+                // yield return null;
+            }
+            tex.Apply();
         }
 
         public void OnImportPressed()
@@ -80,12 +137,37 @@ namespace Jukebox.Tests
         {
             if (beatmap == null)
             {
-                RiqBeatmap newBeatmap = new RiqBeatmap();
-                GUIUtility.systemCopyBuffer = newBeatmap.Serialize();
+                beatmap = new RiqBeatmap();
+                GUIUtility.systemCopyBuffer = beatmap.Serialize();
             }
             else
             {
                 GUIUtility.systemCopyBuffer = beatmap.Serialize();
+            }
+        }
+
+        public void OnMusicSelectPressed()
+        {
+            if (beatmap == null)
+            {
+                beatmap = new RiqBeatmap();
+                RiqFileHandler.WriteRiq(beatmap);
+            }
+            var extensions = new [] {
+                new ExtensionFilter("Audio File", "ogg", "wav", "mp3", "flac"),
+            };
+            var paths = StandaloneFileBrowser.OpenFilePanel("Open File", "", extensions, false);
+            try
+            {
+                if (paths.Length == 0) return;
+                RiqFileHandler.WriteSong(paths[0]);
+                StartCoroutine(LoadMusic());
+                return;
+            }
+            catch (System.Exception e)
+            {
+                statusTxt.text = $"Error selecting music file: {e.Message}";
+                return;
             }
         }
 
@@ -131,6 +213,22 @@ namespace Jukebox.Tests
             statusTxt.text = "Audio Stopped";
             audioSource.Stop();
             musicSlider.value = 0;
+            songProgressFormatted.text = $"00:00";
+            songProgressSeconds.text = $"0.000 / {audioLength:0.000}";
+        }
+
+        public void OnPreviousChunkPressed()
+        {
+            if (currentChunkTime - 1f < 0f) return;
+            currentChunkTime -= 1f;
+            DrawWaveformChunk(currentChunkTime);
+        }
+
+        public void OnNextChunkPressed()
+        {
+            if (currentChunkTime + 1f > audioLength) return;
+            currentChunkTime += 1f;
+            DrawWaveformChunk(currentChunkTime);
         }
     }
 }

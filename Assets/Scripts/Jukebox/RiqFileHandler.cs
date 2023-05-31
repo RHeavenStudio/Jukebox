@@ -17,13 +17,23 @@ namespace Jukebox
     public class RiqFileHandler
     {
         static string tmpDir = Application.temporaryCachePath + "/RIQCache/";
-        static AudioClip audioClip;
+        static AudioClip streamedAudioClip;
+        static float[] songChunk;
+        static bool songChunkLock = false;
 
-        public static AudioClip LoadedAudioClip
+        public static AudioClip StreamedAudioClip
         {
             get
             {
-                return audioClip;
+                return streamedAudioClip;
+            }
+        }
+
+        public static float[] LastSongChunk
+        {
+            get
+            {
+                return songChunk;
             }
         }
 
@@ -82,44 +92,11 @@ namespace Jukebox
         public static IEnumerator LoadSong()
         {
             string url = "file://" + tmpDir + "song.bin";
-            audioClip = null;
+            streamedAudioClip = null;
             if (!File.Exists(tmpDir + "song.bin")) throw new System.IO.FileNotFoundException("path", $"Chart song file does not exist at path {tmpDir + "song.bin"}");
             
-            AudioType audioType = AudioType.UNKNOWN;
-            // determine audio type based on file contents
-            // todo: put in own method
-            using (FileStream fs = File.OpenRead(tmpDir + "song.bin"))
-            {
-                byte[] buffer = new byte[4];
-                fs.Read(buffer, 0, 4);
-                if (System.Text.Encoding.UTF8.GetString(buffer) == "OggS")
-                {
-                    audioType = AudioType.OGGVORBIS;
-                }
-                else if (System.Text.Encoding.UTF8.GetString(buffer) == "RIFF")
-                {
-                    fs.Read(buffer, 8, 12);
-                    if (System.Text.Encoding.UTF8.GetString(buffer) == "WAVE")
-                        audioType = AudioType.WAV;
-                }
-                else 
-                {
-                    // fs.Read(buffer, 0, 3);
-                        // THIS WON'T ALWAYS WORK
-                        // todo: use file extension as last-ditch effort to determine audio type
-                        // todo: other formats like flac? (we may need ffmpeg to convert these to wav or ogg, do that on the import step)
-                    // if (System.Text.Encoding.UTF8.GetString(buffer) == "ID3")
-                    // {
-                        audioType = AudioType.MPEG;
-                    // }
-                    // else
-                    // {
-                    //     Debug.LogError("Unknown audio type");
-                    //     yield return null;
-                    // }
-                }
-            }                      
-
+            AudioType audioType = AudioFormats.GetAudioType(tmpDir + "song.bin", out _);
+            
             using (var www = UnityWebRequestMultimedia.GetAudioClip(url, audioType))
             {
                 ((DownloadHandlerAudioClip)www.downloadHandler).streamAudio = true;
@@ -136,9 +113,47 @@ namespace Jukebox
                     yield break;
                 }
                 Debug.Log("loaded song");
-                audioClip = ((DownloadHandlerAudioClip)www.downloadHandler).audioClip;
+                streamedAudioClip = ((DownloadHandlerAudioClip)www.downloadHandler).audioClip;
                 yield return null;
             }
+        }
+
+        public static IEnumerator GetSongSamples(int startSample, int numSamples)
+        {
+            // we can't get sample data from streamed audio
+            // temporarily load the entire song into memory to fill a buffer
+
+            string url = "file://" + tmpDir + "song.bin";
+            AudioClip audio = null;
+            if (!File.Exists(tmpDir + "song.bin")) throw new System.IO.FileNotFoundException("path", $"Chart song file does not exist at path {tmpDir + "song.bin"}");
+            
+            AudioType audioType = AudioFormats.GetAudioType(tmpDir + "song.bin", out _);
+            songChunk = new float[numSamples];
+            songChunkLock = true;
+
+            using (var www = UnityWebRequestMultimedia.GetAudioClip(url, audioType))
+            {
+                ((DownloadHandlerAudioClip)www.downloadHandler).streamAudio = false;
+                yield return www.SendWebRequest();
+
+                if (www.result == UnityWebRequest.Result.ConnectionError)
+                {
+                    Debug.Log($"error loading song: {www.error}");
+                    songChunkLock = false;
+                    songChunk = null;
+                    yield break;
+                }
+                Debug.Log(Time.realtimeSinceStartup);
+                while (!((DownloadHandlerAudioClip)www.downloadHandler).isDone)
+                {
+                    yield return null;
+                }
+                audio = ((DownloadHandlerAudioClip)www.downloadHandler).audioClip;
+            }
+            Debug.Log(Time.realtimeSinceStartup);
+            audio.GetData(songChunk, startSample);
+            audio = null;
+            songChunkLock = false;
         }
 
         /// <summary>
@@ -162,23 +177,8 @@ namespace Jukebox
             if (!File.Exists(songPath)) throw new System.IO.FileNotFoundException("path", $"RIQ file does not exist at path {songPath}");
 
             // check if songPath is a valid audio file
-            try
-            {
-                using (var www = UnityWebRequestMultimedia.GetAudioClip("file://" + songPath, AudioType.UNKNOWN))
-                {
-                    www.SendWebRequest();
-                    if (www.result == UnityWebRequest.Result.ConnectionError)
-                    {
-                        Debug.Log($"error loading song: {www.error}");
-                        throw new System.Exception($"error loading song: {www.error}");
-                    }
-                }
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogError($"Error loading song: {e.Message}");
-                throw e;
-            }
+            // todo: allow user to use ffmpeg for unsupported formats
+            if (AudioFormats.GetAudioType(songPath, out _) == AudioType.UNKNOWN) throw new System.IO.InvalidDataException($"file at path {songPath} is not a valid audio file");
 
             string songDest = tmpDir + "song.bin";
             File.Copy(songPath, songDest, true);
