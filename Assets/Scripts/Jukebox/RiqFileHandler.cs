@@ -1,11 +1,8 @@
 using System.IO;
 using System.IO.Compression;
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Networking;
-
-using Newtonsoft.Json;
 
 namespace Jukebox 
 {
@@ -200,7 +197,7 @@ namespace Jukebox
             {
                 if (backup)
                     File.Copy(destPath, destPath + ".bak", true);
-                    
+
                 File.Delete(destPath);
             }
             ZipFile.CreateFromDirectory(tmpDir, destPath, System.IO.Compression.CompressionLevel.Optimal, false);
