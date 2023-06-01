@@ -188,7 +188,7 @@ namespace Jukebox
         /// packs the contents of the temporary cache into a .riq file
         /// </summary>
         /// <param name="destPath">where the new .riq will be saved to</param>
-        public static void PackRiq(string destPath)
+        public static void PackRiq(string destPath, bool backup = true)
         {
             if (tmpDir == string.Empty || tmpDir == null) throw new System.ArgumentNullException("path", "temporary directory cannot be null or empty");
             if (destPath == string.Empty || destPath == null) throw new System.ArgumentNullException("path", "destination path cannot be null or empty");
@@ -196,6 +196,13 @@ namespace Jukebox
             string jsonPath = tmpDir + "remix.json";
             if (!File.Exists(jsonPath)) throw new System.IO.FileNotFoundException("path", $"riq chart file does not exist at path {jsonPath}, was an RIQ file properly created?");
 
+            if (File.Exists(destPath))
+            {
+                if (backup)
+                    File.Copy(destPath, destPath + ".bak", true);
+                    
+                File.Delete(destPath);
+            }
             ZipFile.CreateFromDirectory(tmpDir, destPath, System.IO.Compression.CompressionLevel.Optimal, false);
         }
     }

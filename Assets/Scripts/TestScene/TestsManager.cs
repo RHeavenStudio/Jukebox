@@ -35,6 +35,7 @@ namespace Jukebox.Tests
         private void Start()
         {
             musicSlider.maxValue = 1f;
+            RiqBeatmap.OnUpdateEntity += UpdateEntityTest;
         }
 
         private void Update() {
@@ -46,6 +47,31 @@ namespace Jukebox.Tests
                 songProgressFormatted.text = $"{t.Minutes:D2}:{t.Seconds:D2}";
                 songProgressSeconds.text = $"{time:0.000} / {audioLength:0.000}";
             }
+        }
+
+        public RiqEntity? UpdateEntityTest(string datamodel, RiqEntity entity)
+        {
+            Debug.Log($"UpdateEntityTest 1: {datamodel}");
+            // user code would check for datamodel, and local version
+            // here we use equals for version, but can feasibly be "less than"
+            // different versions can use branching code to handle multiple cases
+            if (datamodel == "karateman/hit" && entity.version == 0)
+            {
+                Debug.Log($"running entity update on {datamodel} at {entity.beat}");
+                try
+                {
+                    entity["type"] = 3;
+                    Debug.Log($"entity \"type\" is now {entity["type"]}");
+                }
+                catch (System.Exception e)
+                {
+                    Debug.Log($"Error updating entity: {e.Message}");
+                }
+                return entity;
+            }
+            // return null if the entity should be untouched
+            Debug.Log("skipping entity update as it is not karateman/hit");
+            return null;
         }
 
         IEnumerator LoadMusic()
@@ -154,7 +180,7 @@ namespace Jukebox.Tests
                 RiqFileHandler.WriteRiq(beatmap);
             }
             var extensions = new [] {
-                new ExtensionFilter("Audio File", "ogg", "wav", "mp3", "flac"),
+                new ExtensionFilter("Audio File", "ogg", "wav", "mp3", "aiff", "aifc"),
             };
             var paths = StandaloneFileBrowser.OpenFilePanel("Open File", "", extensions, false);
             try

@@ -11,6 +11,14 @@ namespace Jukebox
 {
     public class RiqBeatmap
     {
+        public delegate RiqEntity? EntityUpdateHandler(string datamodel, RiqEntity entity);
+
+        /// <summary>
+        /// Use this event to check for and handle entity updates
+        /// return null to leave the entity untouched
+        /// </summary>
+        public static event EntityUpdateHandler OnUpdateEntity;
+
         public RiqBeatmapData data;
 
         public RiqBeatmap(string json)
@@ -37,6 +45,7 @@ namespace Jukebox
                     TypeNameHandling = TypeNameHandling.None,
                 });
                 data = ConvertFromDynamicBeatmap(riq0);
+                RunUpdateHandlers(true);
                 return;
             }
 
@@ -53,6 +62,7 @@ namespace Jukebox
                 Beatmap tengoku = JsonConvert.DeserializeObject<Beatmap>(json);
                 DynamicBeatmap riq0 = DynamicBeatmap.ConvertFromTengoku(tengoku);
                 data = ConvertFromDynamicBeatmap(riq0);
+                RunUpdateHandlers(true);
                 return;
             }
 
@@ -62,12 +72,56 @@ namespace Jukebox
             {
                 TypeNameHandling = TypeNameHandling.Objects,
             });
+            RunUpdateHandlers();
+        }
 
-            // TODO: updating of entities using user-defined methods
-            foreach (RiqEntity entity in data.entities)
+        void RunUpdateHandlers(bool forceUpdate = false)
+        {
+            // lets user code update entities
+            // return null if no changes should be done
+            Debug.Log("Running entity update handlers");
+            for (int i = 0; i < data.entities.Count; i++)
             {
-                
+                RiqEntity? temp = OnUpdateEntity?.Invoke(data.entities[i].datamodel, data.entities[i]);
+                if (temp != null)
+                {
+                    data.entities[i] = (RiqEntity)temp;
+                    forceUpdate = true;
+                }
             }
+
+            for (int i = 0; i < data.tempoChanges.Count; i++)
+            {
+                RiqEntity? temp = OnUpdateEntity?.Invoke(data.tempoChanges[i].datamodel, data.tempoChanges[i]);
+                if (temp != null)
+                {
+                    data.tempoChanges[i] = (RiqEntity)temp;
+                    forceUpdate = true;
+                }
+            }
+
+            for (int i = 0; i < data.volumeChanges.Count; i++)
+            {
+                RiqEntity? temp = OnUpdateEntity?.Invoke(data.volumeChanges[i].datamodel, data.volumeChanges[i]);
+                if (temp != null)
+                {
+                    data.tempoChanges[i] = (RiqEntity)temp;
+                    forceUpdate = true;
+                }
+            }
+
+            for (int i = 0; i < data.beatmapSections.Count; i++)
+            {
+                RiqEntity? temp = OnUpdateEntity?.Invoke(data.beatmapSections[i].datamodel, data.beatmapSections[i]);
+                if (temp != null)
+                {
+                    data.tempoChanges[i] = (RiqEntity)temp;
+                    forceUpdate = true;
+                }
+            }
+
+            if (forceUpdate)
+                RiqFileHandler.WriteRiq(this);
         }
 
         public RiqBeatmap()
