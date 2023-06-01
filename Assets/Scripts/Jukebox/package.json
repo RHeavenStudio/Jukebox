@@ -1,0 +1,18 @@
+{
+    "name": "com.rheavenstudio.jukebox",
+    "version": "0.1.0",
+    "displayName": "Jukebox",
+    "description": "Utility to parse and create Heaven Studio RIQ files.",
+    "unity": "2019.1",
+    "documentationUrl": "https://github.com/RHeavenStudio/Jukebox",
+    "changelogUrl": "https://github.com/RHeavenStudio/Jukebox/commits/main",
+    "licensesUrl": "https://github.com/RHeavenStudio/Jukebox/blob/main/LICENSE",
+    "dependencies": {
+      "com.unity.nuget.newtonsoft-json": "3.2.1"
+   },
+    "author": {
+      "name": "RHeavenStudio",
+      "email": "rheavenstudio@gmail.com",
+      "url": "https://github.com/RHeavenStudio"
+    }
+  }
