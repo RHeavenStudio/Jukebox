@@ -164,12 +164,59 @@ namespace Jukebox.Tests
             if (beatmap == null)
             {
                 beatmap = new RiqBeatmap();
-                GUIUtility.systemCopyBuffer = beatmap.Serialize();
+                beatmap.data.properties = 
+                    new Dictionary<string, object>() {
+                        // mapper set properties? (future: use this to flash the button)
+                        {"propertiesmodified", false},
+
+                        ////// CATEGORY 1: SONG INFO
+                        // general chart info
+                        {"remixtitle", "New Remix"},        // chart name
+                        {"remixauthor", "Your Name"},       // charter's name
+                        {"remixdesc", "Remix Description"}, // chart description
+                        {"remixlevel", 1},                  // chart difficulty (maybe offer a suggestion but still have the mapper determine it)
+                        {"remixtempo", 120f},               // avg. chart tempo
+                        {"remixtags", ""},                  // chart tags
+                        {"icontype", 0},                    // chart icon (presets, custom - future)
+                        {"iconurl", ""},                    // custom icon location (future)
+                        {"challengetype", 0},               // perfect challenge type
+
+                        // chart song info
+                        {"idolgenre", "Song Genre"},        // song genre
+                        {"idolsong", "Song Name"},          // song name
+                        {"idolcredit", "Artist"},           // song artist
+
+                        ////// CATEGORY 2: PROLOGUE AND EPILOGUE
+                        // chart prologue
+                        {"prologuetype", 0},                // prologue card animation (future)
+                        {"prologuecaption", "Remix"},       // prologue card sub-title (future)
+
+                        // chart results screen messages
+                        {"resultcaption", "Rhythm League Notes"},                       // result screen header
+                        {"resultcommon_hi", "Good rhythm."},                            // generic "Superb" message (one-liner, or second line for single-type)
+                        {"resultcommon_ok", "Eh. Passable."},                           // generic "OK" message (one-liner, or second line for single-type)
+                        {"resultcommon_ng", "Try harder next time."},                   // generic "Try Again" message (one-liner, or second line for single-type)
+
+                            // the following are shown / hidden in-editor depending on the tags of the games used
+                        {"resultnormal_hi", "You show strong fundamentals."},           // "Superb" message for normal games (two-liner)
+                        {"resultnormal_ng", "Work on your fundamentals."},              // "Try Again" message for normal games (two-liner)
+
+                        {"resultkeep_hi", "You kept the beat well."},                   // "Superb" message for keep-the-beat games (two-liner)
+                        {"resultkeep_ng", "You had trouble keeping the beat."},         // "Try Again" message for keep-the-beat games (two-liner)
+
+                        {"resultaim_hi", "You had great aim."},                         // "Superb" message for aim games (two-liner)
+                        {"resultaim_ng", "Your aim was a little shaky."},               // "Try Again" message for aim games (two-liner)
+
+                        {"resultrepeat_hi", "You followed the example well."},          // "Superb" message for call-and-response games (two-liner)
+                        {"resultrepeat_ng", "Next time, follow the example better."},   // "Try Again" message for call-and-response games (two-liner)
+                };
+                RiqFileHandler.WriteRiq(beatmap);
+                // GUIUtility.systemCopyBuffer = beatmap.Serialize();
             }
-            else
-            {
-                GUIUtility.systemCopyBuffer = beatmap.Serialize();
-            }
+            // else
+            // {
+            //     GUIUtility.systemCopyBuffer = beatmap.Serialize();
+            // }
         }
 
         public void OnMusicSelectPressed()

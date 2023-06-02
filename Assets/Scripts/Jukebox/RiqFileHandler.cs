@@ -1,6 +1,7 @@
 using System.IO;
 using System.IO.Compression;
 using System.Collections;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -84,19 +85,23 @@ namespace Jukebox
         }
 
         /// <summary>
-        /// asynchronously creates an audio clip to stream from the song.ogg file in the temporary directory
+        /// creates an AudioClip from the song file in the temporary cache
         /// </summary>
-        public static IEnumerator LoadSong()
+        /// <param name="stream">should the audio be streamed?</param>
+        /// <exception cref="System.IO.FileNotFoundException">song file doesn't exist in temporary cache</exception>
+        /// <exception cref="System.IO.InvalidDataException">song file is of unknown type</exception>
+        public static IEnumerator LoadSong(bool stream = true)
         {
             string url = "file://" + tmpDir + "song.bin";
             streamedAudioClip = null;
             if (!File.Exists(tmpDir + "song.bin")) throw new System.IO.FileNotFoundException("path", $"Chart song file does not exist at path {tmpDir + "song.bin"}");
             
             AudioType audioType = AudioFormats.GetAudioType(tmpDir + "song.bin", out _);
+            if (audioType == AudioType.UNKNOWN) throw new System.IO.InvalidDataException($"file at path {tmpDir + "song.bin"} is of unknown type");
             
             using (var www = UnityWebRequestMultimedia.GetAudioClip(url, audioType))
             {
-                ((DownloadHandlerAudioClip)www.downloadHandler).streamAudio = true;
+                ((DownloadHandlerAudioClip)www.downloadHandler).streamAudio = stream;
                 yield return www.SendWebRequest();
 
                 while(www.result != UnityWebRequest.Result.ConnectionError && www.downloadedBytes <= 1024)
@@ -115,6 +120,13 @@ namespace Jukebox
             }
         }
 
+        /// <summary>
+        /// fills a buffer with a chunk of the song file in the temporary cache
+        /// note: this blocks the main thread
+        /// </summary>
+        /// <param name="startSample">start of wanted audio</param>
+        /// <param name="numSamples">length of buffer</param>
+        /// <exception cref="System.IO.FileNotFoundException">song file doesn't exist in temporary cache</exception>
         public static IEnumerator GetSongSamples(int startSample, int numSamples)
         {
             // we can't get sample data from streamed audio
@@ -141,10 +153,6 @@ namespace Jukebox
                     yield break;
                 }
                 Debug.Log(Time.realtimeSinceStartup);
-                while (!((DownloadHandlerAudioClip)www.downloadHandler).isDone)
-                {
-                    yield return null;
-                }
                 audio = ((DownloadHandlerAudioClip)www.downloadHandler).audioClip;
             }
             Debug.Log(Time.realtimeSinceStartup);
@@ -174,8 +182,9 @@ namespace Jukebox
             if (!File.Exists(songPath)) throw new System.IO.FileNotFoundException("path", $"RIQ file does not exist at path {songPath}");
 
             // check if songPath is a valid audio file
-            // todo: allow user to use ffmpeg for unsupported formats
-            if (AudioFormats.GetAudioType(songPath, out _) == AudioType.UNKNOWN) throw new System.IO.InvalidDataException($"file at path {songPath} is not a valid audio file");
+            // user code can catch the invalid data exception and use other means to try and load the song
+            // (eg. ffmpeg conversion)
+            if (AudioFormats.GetAudioType(songPath, out _) == AudioType.UNKNOWN) throw new System.IO.InvalidDataException($"file at path {songPath} is of unknown type");
 
             string songDest = tmpDir + "song.bin";
             File.Copy(songPath, songDest, true);
@@ -201,6 +210,18 @@ namespace Jukebox
                 File.Delete(destPath);
             }
             ZipFile.CreateFromDirectory(tmpDir, destPath, System.IO.Compression.CompressionLevel.Optimal, false);
+        }
+
+        /// <summary>
+        /// makes a backup of the current .riq file in the temporary cache
+        /// and puts it in persistent data
+        /// </summary>
+        public async static Task BackupRiq()
+        {
+            string bakDir = Application.persistentDataPath + "/RIQBackup/";
+            if (!Directory.Exists(bakDir))
+                Directory.CreateDirectory(bakDir);
+            await Task.Run(() => PackRiq(bakDir + "backup.riq", true));
         }
     }
 }

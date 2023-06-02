@@ -198,6 +198,7 @@ namespace Jukebox
 
             e.CreateProperty("tempo", tempo);
             e.CreateProperty("swing", 0f);
+            e.CreateProperty("timeSignature", new Vector2(4, 4));
 
             data.tempoChanges.Add(e);
             return e;
@@ -298,6 +299,7 @@ namespace Jukebox
 
                 e.CreateProperty("tempo", tempo.tempo);
                 e.CreateProperty("swing", 0f);
+                e.CreateProperty("timeSignature", new Vector2(4, 4));
 
                 data.tempoChanges.Add(e);
             }
