@@ -88,5 +88,25 @@ namespace Jukebox
             if (!dynamicData.ContainsKey(name))
                 dynamicData.Add(name, defaultValue);
         }
+
+        public static bool operator == (RiqEntity a, RiqEntity b)
+        {
+            return a.uid == b.uid;
+        }
+
+        public static bool operator != (RiqEntity a, RiqEntity b)
+        {
+            return a.uid != b.uid;
+        }
+
+        public static bool operator true (RiqEntity a)
+        {
+            return a.uid != 0 && !string.IsNullOrEmpty(a.datamodel);
+        }
+
+        public static bool operator false (RiqEntity a)
+        {
+            return a.uid == 0 || string.IsNullOrEmpty(a.datamodel);
+        }
     }
 }
