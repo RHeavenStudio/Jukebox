@@ -44,6 +44,7 @@ namespace Jukebox
         public RiqEntity(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, dynamic> dynamicData = null)
         {
             this.data = new RiqEntityData(type, version, datamodel, beat, length, dynamicData);
+            uid = RiqBeatmap.UidProvider;
         }
 
         public RiqEntity(RiqEntityData data)
