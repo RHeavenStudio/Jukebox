@@ -27,7 +27,7 @@ namespace Jukebox
             return copy;
         }
 
-        public object this[string propertyName]
+        public dynamic this[string propertyName]
         {
             get
             {
@@ -66,7 +66,7 @@ namespace Jukebox
             }
         }
 
-        public void CreateProperty(string name, object defaultValue)
+        public void CreateProperty(string name, dynamic defaultValue)
         {
             if (dynamicData == null)
                 dynamicData = new();
