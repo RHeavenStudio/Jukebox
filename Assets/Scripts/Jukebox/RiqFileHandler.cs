@@ -167,6 +167,8 @@ namespace Jukebox
         /// <param name="beatmap">RiqBeatmap to serialize</param>
         public static void WriteRiq(RiqBeatmap beatmap)
         {
+            if (!Directory.Exists(tmpDir))
+                Directory.CreateDirectory(tmpDir);
             string jsonPath = tmpDir + "remix.json";
             string json = beatmap.Serialize();
             File.WriteAllText(jsonPath, json, System.Text.Encoding.UTF8);
@@ -185,6 +187,9 @@ namespace Jukebox
             // user code can catch the invalid data exception and use other means to try and load the song
             // (eg. ffmpeg conversion)
             if (AudioFormats.GetAudioType(songPath, out _) == AudioType.UNKNOWN) throw new System.IO.InvalidDataException($"file at path {songPath} is of unknown type");
+
+            if (!Directory.Exists(tmpDir))
+                Directory.CreateDirectory(tmpDir);
 
             string songDest = tmpDir + "song.bin";
             File.Copy(songPath, songDest, true);
