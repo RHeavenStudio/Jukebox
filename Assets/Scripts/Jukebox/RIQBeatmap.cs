@@ -11,7 +11,7 @@ namespace Jukebox
     public class RiqBeatmap
     {
         public delegate RiqBeatmapData? BeatmapUpdateHandler(string version, RiqBeatmapData data);
-        public delegate RiqEntity? EntityUpdateHandler(string datamodel, RiqEntity entity);
+        public delegate RiqEntity EntityUpdateHandler(string datamodel, RiqEntity entity);
 
         /// <summary>
         /// Use this event to update the main beatmap data
@@ -140,7 +140,7 @@ namespace Jukebox
             Debug.Log("Running entity update handlers");
             for (int i = 0; i < data.entities.Count; i++)
             {
-                RiqEntity? temp = OnUpdateEntity?.Invoke(data.entities[i].datamodel, data.entities[i]);
+                RiqEntity temp = OnUpdateEntity?.Invoke(data.entities[i].datamodel, data.entities[i]);
                 if (temp != null)
                 {
                     data.entities[i] = (RiqEntity)temp;
@@ -150,7 +150,7 @@ namespace Jukebox
 
             for (int i = 0; i < data.tempoChanges.Count; i++)
             {
-                RiqEntity? temp = OnUpdateEntity?.Invoke(data.tempoChanges[i].datamodel, data.tempoChanges[i]);
+                RiqEntity temp = OnUpdateEntity?.Invoke(data.tempoChanges[i].datamodel, data.tempoChanges[i]);
                 if (temp != null)
                 {
                     data.tempoChanges[i] = (RiqEntity)temp;
@@ -160,7 +160,7 @@ namespace Jukebox
 
             for (int i = 0; i < data.volumeChanges.Count; i++)
             {
-                RiqEntity? temp = OnUpdateEntity?.Invoke(data.volumeChanges[i].datamodel, data.volumeChanges[i]);
+                RiqEntity temp = OnUpdateEntity?.Invoke(data.volumeChanges[i].datamodel, data.volumeChanges[i]);
                 if (temp != null)
                 {
                     data.tempoChanges[i] = (RiqEntity)temp;
@@ -170,7 +170,7 @@ namespace Jukebox
 
             for (int i = 0; i < data.beatmapSections.Count; i++)
             {
-                RiqEntity? temp = OnUpdateEntity?.Invoke(data.beatmapSections[i].datamodel, data.beatmapSections[i]);
+                RiqEntity temp = OnUpdateEntity?.Invoke(data.beatmapSections[i].datamodel, data.beatmapSections[i]);
                 if (temp != null)
                 {
                     data.tempoChanges[i] = (RiqEntity)temp;

@@ -49,7 +49,7 @@ namespace Jukebox.Tests
             }
         }
 
-        public RiqEntity? UpdateEntityTest(string datamodel, RiqEntity entity)
+        public RiqEntity UpdateEntityTest(string datamodel, RiqEntity entity)
         {
             Debug.Log($"UpdateEntityTest 1: {datamodel}");
             // user code would check for datamodel, and local version
@@ -155,6 +155,7 @@ namespace Jukebox.Tests
             catch (System.Exception e)
             {
                 statusTxt.text = $"Error importing RIQ: {e.Message}";
+                Debug.LogException(e);
                 return;
             }
         }
