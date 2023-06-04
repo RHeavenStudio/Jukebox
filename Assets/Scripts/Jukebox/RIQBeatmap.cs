@@ -25,7 +25,7 @@ namespace Jukebox
         public List<RiqEntity> VolumeChanges => data.volumeChanges;
         public List<RiqEntity> SectionMarkers => data.beatmapSections;
 
-        public object this[string propertyName]
+        public dynamic this[string propertyName]
         {
             get
             {
