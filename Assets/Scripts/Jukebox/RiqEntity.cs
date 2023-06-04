@@ -13,7 +13,19 @@ namespace Jukebox
         public string datamodel;
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)] public double beat;
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)] public float length;
+        [NonSerialized] public int uid;
         public Dictionary<string, dynamic> dynamicData;
+
+        public RiqEntity(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, dynamic> dynamicData = null)
+        {
+            this.type = type;
+            this.version = version;
+            this.datamodel = datamodel;
+            this.beat = beat;
+            this.length = length;
+            this.dynamicData = dynamicData ?? new();
+            uid = RiqBeatmap.UidProvider;
+        }
 
         public RiqEntity DeepCopy()
         {
@@ -24,6 +36,8 @@ namespace Jukebox
             copy.length = length;
             copy.datamodel = datamodel;
             copy.dynamicData = new Dictionary<string, dynamic>(dynamicData);
+            
+            uid = RiqBeatmap.UidProvider;
             return copy;
         }
 
