@@ -32,7 +32,6 @@ namespace Jukebox
     [JsonConverter(typeof(RiqEntityConverter))]
     public class RiqEntity
     {
-        public static List<Type> SubscribedTypes = new() { typeof(int), typeof(long), typeof(float), typeof(double), typeof(string), typeof(bool), typeof(UnityEngine.Color) };
         public RiqEntityData data;
         public int uid;
 
@@ -56,8 +55,6 @@ namespace Jukebox
         public RiqEntity DeepCopy()
         {
             RiqEntity copy = new RiqEntity(data.DeepCopy());
-            copy.uid = uid;
-            
             return copy;
         }
 
