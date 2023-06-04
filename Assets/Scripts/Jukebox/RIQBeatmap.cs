@@ -71,13 +71,31 @@ namespace Jukebox
         public RiqBeatmap(string json)
         {
             if (json == string.Empty || json == null) throw new ArgumentNullException("json", "json cannot be null or empty");
+            ResetUidProvider();
 
             // scan the json to check if we need to do conversion
+            // if the json is missing the "properties" property, it's an older legacy type (tengoku, rhmania)
             // if the json is missing the "riqVersion" property, it's a v0 riq
-            // if the json is missing the "properties" property, it's an even older legacy type (tengoku, rhmania)
             // otherwise, it's a v1 riq
 
-            // first check for v0 riqs
+            // check for legacy types
+            var tengokuDef = new { properties = new Dictionary<string, object>() };
+            var properties = JsonConvert.DeserializeAnonymousType(json, tengokuDef, new JsonSerializerSettings()
+            {
+                TypeNameHandling = TypeNameHandling.None,
+                NullValueHandling = NullValueHandling.Include,
+            });
+            if (properties.properties == null)
+            {
+                Debug.Log("Detected legacy type (tengoku, rhmania)");
+                Beatmap tengoku = JsonConvert.DeserializeObject<Beatmap>(json);
+                DynamicBeatmap riq0 = DynamicBeatmap.ConvertFromTengoku(tengoku);
+                data = ConvertFromDynamicBeatmap(riq0);
+                RunUpdateHandlers(true);
+                return;
+            }
+
+            // check for v0 riqs
             var riq0Def = new { riqVersion = "" };
             var riqVersion = JsonConvert.DeserializeAnonymousType(json, riq0Def, new JsonSerializerSettings()
             {
@@ -96,22 +114,6 @@ namespace Jukebox
                 return;
             }
 
-            // then check for legacy types
-            var tengokuDef = new { properties = new Dictionary<string, object>() };
-            var properties = JsonConvert.DeserializeAnonymousType(json, tengokuDef, new JsonSerializerSettings()
-            {
-                TypeNameHandling = TypeNameHandling.None,
-                NullValueHandling = NullValueHandling.Include,
-            });
-            if (properties.properties == null)
-            {
-                Debug.Log("Detected legacy type (tengoku, rhmania)");
-                Beatmap tengoku = JsonConvert.DeserializeObject<Beatmap>(json);
-                DynamicBeatmap riq0 = DynamicBeatmap.ConvertFromTengoku(tengoku);
-                data = ConvertFromDynamicBeatmap(riq0);
-                RunUpdateHandlers(true);
-                return;
-            }
 
             // v1 riq detected
             Debug.Log("Detected \"v1\" riq (RiqBeatmapData)");
@@ -178,8 +180,6 @@ namespace Jukebox
 
             if (forceUpdate)
                 RiqFileHandler.WriteRiq(this);
-            
-            ResetUidProvider();
         }
 
         public string Serialize()
