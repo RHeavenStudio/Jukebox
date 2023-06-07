@@ -32,7 +32,8 @@ namespace Jukebox
                         specificType = "OggVorbis";
                         break;
                     case "RIFF":
-                        fs.Read(buffer, 8, 4);
+                        fs.Position = 8;
+                        fs.Read(buffer, 0, 4);
                         sub = System.Text.Encoding.UTF8.GetString(buffer);
                         if (sub == "WAVE")
                         {
@@ -41,7 +42,8 @@ namespace Jukebox
                         }
                         break;
                     case "FORM":
-                        fs.Read(buffer, 8, 4);
+                        fs.Position = 8;
+                        fs.Read(buffer, 0, 4);
                         sub = System.Text.Encoding.UTF8.GetString(buffer);
                         if (sub == "AIFF")
                         {
@@ -55,6 +57,7 @@ namespace Jukebox
                         }
                         break;
                     default:
+                        fs.Position = 0;
                         byte[] buffer3 = new byte[3];
                         fs.Read(buffer3, 0, 3);
                         sub = System.Text.Encoding.UTF8.GetString(buffer3);
