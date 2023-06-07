@@ -32,7 +32,7 @@ namespace Jukebox
                         specificType = "OggVorbis";
                         break;
                     case "RIFF":
-                        fs.Read(buffer, 8, 12);
+                        fs.Read(buffer, 8, 4);
                         sub = System.Text.Encoding.UTF8.GetString(buffer);
                         if (sub == "WAVE")
                         {
@@ -41,7 +41,7 @@ namespace Jukebox
                         }
                         break;
                     case "FORM":
-                        fs.Read(buffer, 8, 12);
+                        fs.Read(buffer, 8, 4);
                         sub = System.Text.Encoding.UTF8.GetString(buffer);
                         if (sub == "AIFF")
                         {
@@ -55,14 +55,15 @@ namespace Jukebox
                         }
                         break;
                     default:
-                        fs.Read(buffer, 0, 3);
-                        sub = System.Text.Encoding.UTF8.GetString(buffer);
+                        byte[] buffer3 = new byte[3];
+                        fs.Read(buffer3, 0, 3);
+                        sub = System.Text.Encoding.UTF8.GetString(buffer3);
                         if (sub == "ID3")
                         {
                             audioType = AudioType.MPEG;
                             specificType = "mp3";
                         }
-                        else if (buffer[0] == 0xFF && (buffer[1] & 0x0A) == 0x0A)
+                        else if (buffer3[0] == 0xFF && (buffer3[1] & 0x0A) == 0x0A)
                         {
                             // this condition can literally trip out of chance
                             audioType = AudioType.MPEG;
