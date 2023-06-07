@@ -228,5 +228,13 @@ namespace Jukebox
                 Directory.CreateDirectory(bakDir);
             await Task.Run(() => PackRiq(bakDir + "backup.riq", true));
         }
+
+        /// <summary>
+        /// clears the temporary cache
+        /// </summary>        
+        public static void ClearCache()
+        {
+            Directory.Delete(tmpDir, true);
+        }
     }
 }
