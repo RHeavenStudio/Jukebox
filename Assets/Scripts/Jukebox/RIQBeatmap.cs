@@ -149,7 +149,16 @@ namespace Jukebox
                 RiqEntity temp = OnUpdateEntity?.Invoke(data.entities[i].datamodel, data.entities[i]);
                 if (temp != null)
                 {
-                    data.entities[i] = (RiqEntity)temp;
+                    RiqEntity e = (RiqEntity)temp;
+                    if (e.beat == double.NaN)
+                    {
+                        data.entities.RemoveAt(i);
+                        i--;
+                    }
+                    else
+                    {
+                        data.entities[i] = e;
+                    }
                     forceUpdate = true;
                 }
             }
@@ -159,7 +168,16 @@ namespace Jukebox
                 RiqEntity temp = OnUpdateEntity?.Invoke(data.tempoChanges[i].datamodel, data.tempoChanges[i]);
                 if (temp != null)
                 {
-                    data.tempoChanges[i] = (RiqEntity)temp;
+                    RiqEntity e = (RiqEntity)temp;
+                    if (e.beat == double.NaN)
+                    {
+                        data.tempoChanges.RemoveAt(i);
+                        i--;
+                    }
+                    else
+                    {
+                        data.tempoChanges[i] = e;
+                    }
                     forceUpdate = true;
                 }
             }
@@ -169,7 +187,16 @@ namespace Jukebox
                 RiqEntity temp = OnUpdateEntity?.Invoke(data.volumeChanges[i].datamodel, data.volumeChanges[i]);
                 if (temp != null)
                 {
-                    data.tempoChanges[i] = (RiqEntity)temp;
+                    RiqEntity e = (RiqEntity)temp;
+                    if (e.beat == double.NaN)
+                    {
+                        data.volumeChanges.RemoveAt(i);
+                        i--;
+                    }
+                    else
+                    {
+                        data.volumeChanges[i] = e;
+                    }
                     forceUpdate = true;
                 }
             }
@@ -179,7 +206,16 @@ namespace Jukebox
                 RiqEntity temp = OnUpdateEntity?.Invoke(data.beatmapSections[i].datamodel, data.beatmapSections[i]);
                 if (temp != null)
                 {
-                    data.tempoChanges[i] = (RiqEntity)temp;
+                    RiqEntity e = (RiqEntity)temp;
+                    if (e.beat == double.NaN)
+                    {
+                        data.beatmapSections.RemoveAt(i);
+                        i--;
+                    }
+                    else
+                    {
+                        data.beatmapSections[i] = e;
+                    }
                     forceUpdate = true;
                 }
             }
