@@ -10,6 +10,8 @@ namespace Jukebox.Legacy
     [Serializable]
     public class DynamicBeatmap
     {
+        
+#if JUKEBOX_LEGACY_CONVERTER
         public static DynamicBeatmap ConvertFromTengoku(Beatmap beatmap)
         {
             Debug.Log("Updating tengoku / rhmania to \"v0\" riq (DynamicBeatmap)");
@@ -75,7 +77,7 @@ namespace Jukebox.Legacy
             Debug.Log("Updating tengoku / rhmania to \"v0\" riq (DynamicBeatmap) - done");
             return db;
         }
-
+#endif
 
         public static int CurrentRiqVersion = 0;
         public float bpm;

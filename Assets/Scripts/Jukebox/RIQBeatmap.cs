@@ -78,40 +78,46 @@ namespace Jukebox
             // if the json is missing the "riqVersion" property, it's a v0 riq
             // otherwise, it's a v1 riq
 
-            // check for legacy types
-            var tengokuDef = new { properties = new Dictionary<string, object>() };
-            var properties = JsonConvert.DeserializeAnonymousType(json, tengokuDef, new JsonSerializerSettings()
+            var riq1Def = new { riqVersion = "" };
+            var riqVersion = JsonConvert.DeserializeAnonymousType(json, riq1Def, new JsonSerializerSettings()
             {
                 TypeNameHandling = TypeNameHandling.None,
                 NullValueHandling = NullValueHandling.Include,
             });
-            if (properties.properties == null)
-            {
-                Debug.Log("Detected legacy type (tengoku, rhmania)");
-                Beatmap tengoku = JsonConvert.DeserializeObject<Beatmap>(json);
-                DynamicBeatmap riq0 = DynamicBeatmap.ConvertFromTengoku(tengoku);
-                data = ConvertFromDynamicBeatmap(riq0);
-                RunUpdateHandlers(true);
-                return;
-            }
-
-            // check for v0 riqs
-            var riq0Def = new { riqVersion = "" };
-            var riqVersion = JsonConvert.DeserializeAnonymousType(json, riq0Def, new JsonSerializerSettings()
-            {
-                TypeNameHandling = TypeNameHandling.None,
-                NullValueHandling = NullValueHandling.Include,
-            });
+            // check for old riqs
             if (riqVersion.riqVersion == "" || riqVersion.riqVersion == null)
             {
-                Debug.Log("Detected \"v0\" riq (DynamicBeatmap)");
-                DynamicBeatmap riq0 = JsonConvert.DeserializeObject<DynamicBeatmap>(json, new JsonSerializerSettings()
+#if JUKEBOX_LEGACY_CONVERTER
+                // check for legacy types
+                var legacyDef = new { properties = new Dictionary<string, object>() };
+                var properties = JsonConvert.DeserializeAnonymousType(json, legacyDef, new JsonSerializerSettings()
                 {
                     TypeNameHandling = TypeNameHandling.None,
+                    NullValueHandling = NullValueHandling.Ignore,
                 });
-                data = ConvertFromDynamicBeatmap(riq0);
-                RunUpdateHandlers(true);
-                return;
+                if (properties.properties == null)
+                {
+                    Debug.Log("Detected legacy type (tengoku, rhmania)");
+                    Beatmap tengoku = JsonConvert.DeserializeObject<Beatmap>(json);
+                    DynamicBeatmap riq0 = DynamicBeatmap.ConvertFromTengoku(tengoku);
+                    data = ConvertFromDynamicBeatmap(riq0);
+                    RunUpdateHandlers(true);
+                    return;
+                }
+                else
+                {
+#endif
+                    Debug.Log("Detected \"v0\" riq (DynamicBeatmap)");
+                    DynamicBeatmap riq0 = JsonConvert.DeserializeObject<DynamicBeatmap>(json, new JsonSerializerSettings()
+                    {
+                        TypeNameHandling = TypeNameHandling.None,
+                    });
+                    data = ConvertFromDynamicBeatmap(riq0);
+                    RunUpdateHandlers(true);
+                    return;
+#if JUKEBOX_LEGACY_CONVERTER
+                }
+#endif
             }
 
 
