@@ -244,11 +244,12 @@ namespace Jukebox
         }
 
         /// <summary>
-        /// clears the temporary cache
+        /// clears the temporary cache if it exists
         /// </summary>        
         public static void ClearCache()
         {
-            Directory.Delete(tmpDir, true);
+            if (Directory.Exists(tmpDir))
+                Directory.Delete(tmpDir, true);
         }
     }
 }
