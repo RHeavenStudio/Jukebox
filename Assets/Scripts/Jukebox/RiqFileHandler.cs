@@ -57,6 +57,9 @@ namespace Jukebox
                 {
                     File.Move(tmpDir + "song.ogg", tmpDir + "song.bin");
                 }
+
+                FileInfo inf = new FileInfo(tmpDir + "song.bin");
+                if (inf.Length == 0) File.Delete(tmpDir + "song.bin");
             }
             catch (System.Exception e)
             {
@@ -94,7 +97,10 @@ namespace Jukebox
         {
             string url = "file://" + tmpDir + "song.bin";
             streamedAudioClip = null;
-            if (!File.Exists(tmpDir + "song.bin")) throw new System.IO.FileNotFoundException($"Chart song file does not exist at path {tmpDir + "song.bin"}", tmpDir + "song.bin");
+            if (!File.Exists(tmpDir + "song.bin")) throw new System.IO.FileNotFoundException($"Chart song file does not exist at path {tmpDir + "song.bin"}");
+
+            FileInfo inf = new FileInfo(tmpDir + "song.bin");
+            if (inf.Length == 0) throw new System.IO.FileNotFoundException($"Chart song file does not exist at path {tmpDir + "song.bin"}");
             
             AudioType audioType = AudioFormats.GetAudioType(tmpDir + "song.bin", out _);
             if (audioType == AudioType.UNKNOWN) throw new System.IO.InvalidDataException($"file at path {tmpDir + "song.bin"} is of unknown type");
