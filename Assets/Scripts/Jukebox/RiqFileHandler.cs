@@ -94,17 +94,19 @@ namespace Jukebox
         {
             string url = "file://" + tmpDir + "song.bin";
             streamedAudioClip = null;
-            if (!File.Exists(tmpDir + "song.bin")) throw new System.IO.FileNotFoundException("path", $"Chart song file does not exist at path {tmpDir + "song.bin"}");
+            if (!File.Exists(tmpDir + "song.bin")) throw new System.IO.FileNotFoundException($"Chart song file does not exist at path {tmpDir + "song.bin"}", tmpDir + "song.bin");
             
             AudioType audioType = AudioFormats.GetAudioType(tmpDir + "song.bin", out _);
             if (audioType == AudioType.UNKNOWN) throw new System.IO.InvalidDataException($"file at path {tmpDir + "song.bin"} is of unknown type");
+
+            // url = UnityWebRequest.EscapeURL(url);
+            // Debug.Log($"loading song from {url}");
             
             using (var www = UnityWebRequestMultimedia.GetAudioClip(url, audioType))
             {
                 ((DownloadHandlerAudioClip)www.downloadHandler).streamAudio = stream;
-                yield return www.SendWebRequest();
-
-                while(www.result != UnityWebRequest.Result.ConnectionError && www.downloadedBytes <= 1024)
+                www.SendWebRequest();
+                while (!(www.result == UnityWebRequest.Result.ConnectionError) && www.downloadedBytes < 1024)
                 {
                     yield return null;
                 }
@@ -114,6 +116,7 @@ namespace Jukebox
                     Debug.Log($"error loading song: {www.error}");
                     yield break;
                 }
+
                 Debug.Log("loaded song");
                 streamedAudioClip = ((DownloadHandlerAudioClip)www.downloadHandler).audioClip;
                 yield return null;
@@ -140,9 +143,12 @@ namespace Jukebox
             songChunk = new float[numSamples];
             songChunkLock = true;
 
+            // url = UnityWebRequest.EscapeURL(url);
+
             using (var www = UnityWebRequestMultimedia.GetAudioClip(url, audioType))
             {
                 ((DownloadHandlerAudioClip)www.downloadHandler).streamAudio = false;
+                
                 yield return www.SendWebRequest();
 
                 if (www.result == UnityWebRequest.Result.ConnectionError)
@@ -152,6 +158,8 @@ namespace Jukebox
                     songChunk = null;
                     yield break;
                 }
+                Debug.Log(www.result);
+
                 Debug.Log(Time.realtimeSinceStartup);
                 audio = ((DownloadHandlerAudioClip)www.downloadHandler).audioClip;
             }

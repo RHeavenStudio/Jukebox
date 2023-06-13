@@ -76,7 +76,30 @@ namespace Jukebox.Tests
 
         IEnumerator LoadMusic()
         {
-            yield return RiqFileHandler.LoadSong();
+            IEnumerator load = RiqFileHandler.LoadSong();
+            while (true)
+            {
+                object current = load.Current;
+                try
+                {
+                    if (load.MoveNext() == false)
+                    {
+                        break;
+                    }
+                    current = load.Current;
+                }
+                catch (System.IO.FileNotFoundException f)
+                {
+                    Debug.LogWarning($"chart has no music: {f.Message} {f.StackTrace}");
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"Failed to load music: {e.Message}");
+                    yield break;
+                }
+                yield return current;
+            }
+            Debug.Log("Finished loading music");
             audioSource.clip = RiqFileHandler.StreamedAudioClip;
             audioLength = audioSource.clip.length;
             musicSlider.value = 0;
