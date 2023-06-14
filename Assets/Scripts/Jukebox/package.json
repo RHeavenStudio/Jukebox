@@ -8,7 +8,8 @@
     "changelogUrl": "https://github.com/RHeavenStudio/Jukebox/commits/main",
     "licensesUrl": "https://github.com/RHeavenStudio/Jukebox/blob/main/LICENSE",
     "dependencies": {
-      "com.unity.nuget.newtonsoft-json": "3.2.1"
+      "com.unity.nuget.newtonsoft-json": "3.2.1",
+      "jillejr.newtonsoft.json-for-unity.converters": "https://github.com/jilleJr/Newtonsoft.Json-for-Unity.Converters.git#1.5.1"
    },
     "author": {
       "name": "RHeavenStudio",

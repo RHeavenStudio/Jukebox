@@ -127,6 +127,7 @@ namespace Jukebox
             {
                 TypeNameHandling = TypeNameHandling.None,
                 NullValueHandling = NullValueHandling.Include,
+                ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
             });
             RunUpdateHandlers();
         }
@@ -230,6 +231,7 @@ namespace Jukebox
             { 
                 TypeNameHandling = TypeNameHandling.None,
                 NullValueHandling = NullValueHandling.Include,
+                ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
             });
         }
 
