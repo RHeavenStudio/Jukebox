@@ -58,8 +58,11 @@ namespace Jukebox
                     File.Move(tmpDir + "song.ogg", tmpDir + "song.bin");
                 }
 
-                FileInfo inf = new FileInfo(tmpDir + "song.bin");
-                if (inf.Length == 0) File.Delete(tmpDir + "song.bin");
+                if (File.Exists(tmpDir + "song.bin"))
+                {
+                    FileInfo inf = new FileInfo(tmpDir + "song.bin");
+                    if (inf.Length == 0) File.Delete(tmpDir + "song.bin");
+                }
             }
             catch (System.Exception e)
             {
