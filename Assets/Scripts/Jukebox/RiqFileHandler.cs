@@ -114,8 +114,9 @@ namespace Jukebox
             using (var www = UnityWebRequestMultimedia.GetAudioClip(url, audioType))
             {
                 ((DownloadHandlerAudioClip)www.downloadHandler).streamAudio = stream;
+                ((DownloadHandlerAudioClip)www.downloadHandler).compressed = false;
                 www.SendWebRequest();
-                while (!(www.result == UnityWebRequest.Result.ConnectionError) && www.downloadedBytes < 1024)
+                while (!(www.result == UnityWebRequest.Result.ConnectionError) && www.downloadedBytes < 4096)
                 {
                     yield return null;
                 }
