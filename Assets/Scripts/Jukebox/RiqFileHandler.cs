@@ -19,6 +19,8 @@ namespace Jukebox
         static float[] songChunk;
         static bool songChunkLock = false;
 
+        public static string RiqCachePath => tmpDir;
+
         public static AudioClip StreamedAudioClip
         {
             get
