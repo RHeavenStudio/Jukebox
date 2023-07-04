@@ -39,10 +39,18 @@ namespace Jukebox
         public double beat { get => data.beat; set => data.beat = value; }
         public float length { get => data.length; set => data.length = value; }
         public int version { get => data.version; set => data.version = value; }
+
+#if ENABLE_IL2CPP
+        public Dictionary<string, object> dynamicData { get => data.dynamicData; set => data.dynamicData = value; }
+
+        public RiqEntity(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, object> dynamicData = null)
+        {
+#else
         public Dictionary<string, dynamic> dynamicData { get => data.dynamicData; set => data.dynamicData = value; }
 
         public RiqEntity(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, dynamic> dynamicData = null)
         {
+#endif
             this.data = new RiqEntityData(type, version, datamodel, beat, length, dynamicData);
             uid = RiqBeatmap.UidProvider;
         }
@@ -59,7 +67,11 @@ namespace Jukebox
             return copy;
         }
 
+#if ENABLE_IL2CPP
+        public object this[string propertyName]
+#else
         public dynamic this[string propertyName]
+#endif
         {
             get
             {
@@ -102,7 +114,11 @@ namespace Jukebox
             }
         }
 
+#if ENABLE_IL2CPP
+        public void CreateProperty(string name, object defaultValue)
+#else
         public void CreateProperty(string name, dynamic defaultValue)
+#endif
         {
             if (data.dynamicData == null)
                 data.dynamicData = new();
@@ -120,10 +136,17 @@ namespace Jukebox
         public string datamodel;
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)] public double beat;
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)] public float length;
-        public Dictionary<string, dynamic> dynamicData;
 
+#if ENABLE_IL2CPP
+        public Dictionary<string, object> dynamicData;
+        public RiqEntityData(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, object> dynamicData = null)
+        {
+#else
+        public Dictionary<string, dynamic> dynamicData;
         public RiqEntityData(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, dynamic> dynamicData = null)
         {
+#endif        
+
             this.type = type;
             this.version = version;
             this.datamodel = datamodel;
@@ -140,7 +163,11 @@ namespace Jukebox
             copy.beat = beat;
             copy.length = length;
             copy.datamodel = datamodel;
+#if ENABLE_IL2CPP
+            copy.dynamicData = new Dictionary<string, object>(dynamicData);
+#else
             copy.dynamicData = new Dictionary<string, dynamic>(dynamicData);
+#endif
             
             return copy;
         }

@@ -1,6 +1,6 @@
 {
     "name": "com.rheavenstudio.jukebox",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "displayName": "Jukebox",
     "description": "Utility to parse and create Heaven Studio RIQ files.",
     "unity": "2019.1",

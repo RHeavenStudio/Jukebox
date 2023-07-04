@@ -37,7 +37,7 @@ namespace Jukebox
         public static int UidProvider => ++nextId;
         public static void ResetUidProvider() => nextId = 0;
 
-        public dynamic this[string propertyName]
+        public object this[string propertyName]
         {
             get
             {
