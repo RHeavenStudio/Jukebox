@@ -34,6 +34,7 @@ namespace Jukebox
     {
         public RiqEntityData data;
         public int uid;
+        public Guid guid;
 
         public string datamodel { get => data.datamodel; set => data.datamodel = value; }
         public double beat { get => data.beat; set => data.beat = value; }
@@ -51,14 +52,16 @@ namespace Jukebox
         public RiqEntity(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, dynamic> dynamicData = null)
         {
 #endif
+            this.guid = Guid.NewGuid();
             this.data = new RiqEntityData(type, version, datamodel, beat, length, dynamicData);
-            uid = RiqBeatmap.UidProvider;
+            this.uid = RiqBeatmap.UidProvider;
         }
 
         public RiqEntity(RiqEntityData data)
         {
+            this.guid = Guid.NewGuid();
             this.data = data;
-            uid = RiqBeatmap.UidProvider;
+            this.uid = RiqBeatmap.UidProvider;
         }
 
         public RiqEntity DeepCopy()
@@ -122,7 +125,7 @@ namespace Jukebox
         {
             if (data.dynamicData == null)
                 data.dynamicData = new();
-            
+
             if (!data.dynamicData.ContainsKey(name))
                 data.dynamicData.Add(name, defaultValue);
         }
@@ -146,7 +149,6 @@ namespace Jukebox
         public RiqEntityData(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, dynamic> dynamicData = null)
         {
 #endif        
-
             this.type = type;
             this.version = version;
             this.datamodel = datamodel;
@@ -168,7 +170,7 @@ namespace Jukebox
 #else
             copy.dynamicData = new Dictionary<string, dynamic>(dynamicData);
 #endif
-            
+
             return copy;
         }
 

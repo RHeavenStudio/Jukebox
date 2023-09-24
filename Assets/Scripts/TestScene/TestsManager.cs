@@ -36,6 +36,7 @@ namespace Jukebox.Tests
         {
             musicSlider.maxValue = 1f;
             RiqBeatmap.OnUpdateEntity += UpdateEntityTest;
+            RiqFileHandler.UnlockCache();
         }
 
         private void Update() {
@@ -162,17 +163,19 @@ namespace Jukebox.Tests
         public void OnImportPressed()
         {
             var extensions = new [] {
-                new ExtensionFilter("RIQ-compatible", "riq", "tengoku", "rhmania"),
+                new ExtensionFilter("RIQ-compatible", "riq"),
             };
             var paths = StandaloneFileBrowser.OpenFilePanel("Open File", "", extensions, false);
             try
             {
                 if (paths.Length == 0) return;
+                RiqFileHandler.UnlockCache();
                 string tmpDir = RiqFileHandler.ExtractRiq(paths[0]);
                 beatmap = RiqFileHandler.ReadRiq();
 
                 StartCoroutine(LoadMusic());
                 statusTxt.text = "Imported RIQ successfully!";
+                RiqFileHandler.LockCache();
                 return;
             }
             catch (System.Exception e)
@@ -181,12 +184,14 @@ namespace Jukebox.Tests
                 Debug.LogException(e);
                 return;
             }
+
         }
 
         public void OnCreatePressed()
         {
             if (beatmap == null)
             {
+                RiqFileHandler.UnlockCache();
                 beatmap = new RiqBeatmap();
                 beatmap.data.properties = 
                     new Dictionary<string, object>() {
@@ -235,12 +240,7 @@ namespace Jukebox.Tests
                         {"resultrepeat_ng", "Next time, follow the example better."},   // "Try Again" message for call-and-response games (two-liner)
                 };
                 RiqFileHandler.WriteRiq(beatmap);
-                // GUIUtility.systemCopyBuffer = beatmap.Serialize();
             }
-            // else
-            // {
-            //     GUIUtility.systemCopyBuffer = beatmap.Serialize();
-            // }
         }
 
         public void OnMusicSelectPressed()
@@ -257,8 +257,10 @@ namespace Jukebox.Tests
             try
             {
                 if (paths.Length == 0) return;
+                RiqFileHandler.UnlockCache();
                 RiqFileHandler.WriteSong(paths[0]);
                 StartCoroutine(LoadMusic());
+                RiqFileHandler.LockCache();
                 return;
             }
             catch (System.Exception e)
@@ -326,6 +328,10 @@ namespace Jukebox.Tests
             if (currentChunkTime + 1f > audioLength) return;
             currentChunkTime += 1f;
             DrawWaveformChunk(currentChunkTime);
+        }
+
+        private void OnApplicationQuit() {
+            RiqFileHandler.UnlockCache();
         }
     }
 }

@@ -222,7 +222,11 @@ namespace Jukebox
             }
 
             if (forceUpdate)
+            {
+                RiqFileHandler.UnlockCache();
                 RiqFileHandler.WriteRiq(this);
+                RiqFileHandler.LockCache();
+            }
         }
 
         public string Serialize()

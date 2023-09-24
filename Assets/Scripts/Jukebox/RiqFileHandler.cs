@@ -4,6 +4,7 @@ using System.Collections;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
+using Codice.Client.BaseCommands;
 
 namespace Jukebox 
 {
@@ -12,7 +13,7 @@ namespace Jukebox
     /// Methods here can be changed to suit the use case of the game
     /// (for example, you may want to load chart contents directly into memory instead of using a file cache)
     /// </summary>
-    public class RiqFileHandler
+    public static class RiqFileHandler
     {
         static string tmpDir = Application.temporaryCachePath + "/RIQCache/";
         static AudioClip streamedAudioClip;
@@ -47,6 +48,7 @@ namespace Jukebox
         {
             if (path == string.Empty || path == null) throw new System.ArgumentNullException("path", "path cannot be null or empty");
             if (!File.Exists(path)) throw new System.IO.FileNotFoundException("path", $"RIQ file does not exist at path {path}");
+            if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot extract RIQ file at path {path}");
 
             try
             {
@@ -187,6 +189,7 @@ namespace Jukebox
         /// <param name="beatmap">RiqBeatmap to serialize</param>
         public static void WriteRiq(RiqBeatmap beatmap)
         {
+            if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot write RIQ file");
             if (!Directory.Exists(tmpDir))
                 Directory.CreateDirectory(tmpDir);
             string jsonPath = tmpDir + "remix.json";
@@ -201,7 +204,8 @@ namespace Jukebox
         public static void WriteSong(string songPath)
         {
             if (songPath == string.Empty || songPath == null) throw new System.ArgumentNullException("path", "path cannot be null or empty");
-            if (!File.Exists(songPath)) throw new System.IO.FileNotFoundException("path", $"RIQ file does not exist at path {songPath}");
+            if (!File.Exists(songPath)) throw new System.IO.FileNotFoundException("path", $"Audio file does not exist at path {songPath}");
+            if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot write RIQ file");
 
             // check if songPath is a valid audio file
             // user code can catch the invalid data exception and use other means to try and load the song
@@ -234,7 +238,9 @@ namespace Jukebox
 
                 File.Delete(destPath);
             }
+            UnlockCache();
             ZipFile.CreateFromDirectory(tmpDir, destPath, System.IO.Compression.CompressionLevel.Optimal, false);
+            LockCache();
         }
 
         /// <summary>
@@ -256,6 +262,38 @@ namespace Jukebox
         {
             if (Directory.Exists(tmpDir))
                 Directory.Delete(tmpDir, true);
+        }
+
+        /// <summary>
+        /// checks if the temporary cache has a lock set
+        /// use to safeguard against multiple processes accessing the cache at once
+        /// </summary>
+        /// <returns>is the cache locked?</returns>
+        public static bool IsCacheLocked()
+        {
+            return Directory.Exists(tmpDir) && File.Exists(tmpDir + "lock");
+        }
+
+        /// <summary>
+        /// locks the riq cache
+        /// </summary>
+        public static void LockCache()
+        {
+            if (Directory.Exists(tmpDir) && !File.Exists(tmpDir + "lock"))
+            {
+                File.Create(tmpDir + "lock");
+            }
+        }
+
+        /// <summary>
+        /// unlocks the riq cache
+        /// </summary>
+        public static void UnlockCache()
+        {
+            if (IsCacheLocked())
+            {
+                File.Delete(tmpDir + "lock");
+            }
         }
     }
 }
