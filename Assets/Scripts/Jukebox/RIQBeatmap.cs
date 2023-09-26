@@ -36,8 +36,12 @@ namespace Jukebox
         static int nextId = 0;
         public static int UidProvider => ++nextId;
         public static void ResetUidProvider() => nextId = 0;
-
+        
+#if ENABLE_IL2CPP
         public object this[string propertyName]
+#else
+        public dynamic this[string propertyName]
+#endif
         {
             get
             {
