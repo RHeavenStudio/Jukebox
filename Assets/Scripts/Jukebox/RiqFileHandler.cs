@@ -238,9 +238,7 @@ namespace Jukebox
 
                 File.Delete(destPath);
             }
-            UnlockCache();
             ZipFile.CreateFromDirectory(tmpDir, destPath, System.IO.Compression.CompressionLevel.Optimal, false);
-            LockCache();
         }
 
         /// <summary>
@@ -268,10 +266,10 @@ namespace Jukebox
         /// checks if the temporary cache has a lock set
         /// use to safeguard against multiple processes accessing the cache at once
         /// </summary>
-        /// <returns>is the cache locked?</returns>
+        /// <returns>is the cache locked? or false if the cache doesn't exist</returns>
         public static bool IsCacheLocked()
         {
-            return Directory.Exists(tmpDir) && File.Exists(tmpDir + "lock");
+            return (Directory.Exists(tmpDir) && File.Exists(tmpDir + "lock")) || !Directory.Exists(tmpDir);
         }
 
         /// <summary>
