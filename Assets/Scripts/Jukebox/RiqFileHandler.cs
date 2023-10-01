@@ -269,7 +269,7 @@ namespace Jukebox
         /// <returns>is the cache locked? or false if the cache doesn't exist</returns>
         public static bool IsCacheLocked()
         {
-            return (Directory.Exists(tmpDir) && File.Exists(tmpDir + "lock")) || !Directory.Exists(tmpDir);
+            return Directory.Exists(tmpDir) && File.Exists(tmpDir + "lock");
         }
 
         /// <summary>
