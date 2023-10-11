@@ -227,9 +227,14 @@ namespace Jukebox
 
             if (forceUpdate)
             {
-                RiqFileHandler.UnlockCache();
-                RiqFileHandler.WriteRiq(this);
-                RiqFileHandler.LockCache();
+                if (RiqFileHandler.IsCacheLocked())
+                {
+                    Debug.LogWarning("Chart updated from legacy format, but couldn't force update file. Is cache locked?");
+                }
+                else
+                {
+                    RiqFileHandler.WriteRiq(this);
+                }
             }
         }
 
