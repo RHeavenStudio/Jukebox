@@ -36,7 +36,12 @@ namespace Jukebox.Tests
         {
             musicSlider.maxValue = 1f;
             RiqBeatmap.OnUpdateEntity += UpdateEntityTest;
+            RiqFileHandler.LockCache();
+        }
+
+        private void OnApplicationQuit() {
             RiqFileHandler.UnlockCache();
+            RiqFileHandler.ClearCache();
         }
 
         private void Update() {
@@ -169,13 +174,11 @@ namespace Jukebox.Tests
             try
             {
                 if (paths.Length == 0) return;
-                RiqFileHandler.UnlockCache();
                 string tmpDir = RiqFileHandler.ExtractRiq(paths[0]);
                 beatmap = RiqFileHandler.ReadRiq();
 
                 StartCoroutine(LoadMusic());
                 statusTxt.text = "Imported RIQ successfully!";
-                RiqFileHandler.LockCache();
                 return;
             }
             catch (System.Exception e)
@@ -191,7 +194,6 @@ namespace Jukebox.Tests
         {
             if (beatmap == null)
             {
-                RiqFileHandler.UnlockCache();
                 beatmap = new RiqBeatmap();
                 beatmap.data.properties = 
                     new Dictionary<string, object>() {
@@ -257,10 +259,8 @@ namespace Jukebox.Tests
             try
             {
                 if (paths.Length == 0) return;
-                RiqFileHandler.UnlockCache();
                 RiqFileHandler.WriteSong(paths[0]);
                 StartCoroutine(LoadMusic());
-                RiqFileHandler.LockCache();
                 return;
             }
             catch (System.Exception e)
@@ -328,10 +328,6 @@ namespace Jukebox.Tests
             if (currentChunkTime + 1f > audioLength) return;
             currentChunkTime += 1f;
             DrawWaveformChunk(currentChunkTime);
-        }
-
-        private void OnApplicationQuit() {
-            RiqFileHandler.UnlockCache();
         }
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.IO.Compression;
 using System.Collections;
@@ -14,6 +15,10 @@ namespace Jukebox
     /// </summary>
     public static class RiqFileHandler
     {
+        public delegate string AudioConverterHandler(string filePath, AudioType audioType, string specificType);
+        public static AudioConverterHandler AudioConverter;
+
+        static Guid? CacheID = null;
         static string tmpDir = Application.temporaryCachePath + "/RIQCache/";
         static AudioClip streamedAudioClip;
         static float[] songChunk;
@@ -51,8 +56,7 @@ namespace Jukebox
 
             try
             {
-                if (Directory.Exists(tmpDir))
-                    Directory.Delete(tmpDir, true);
+                ClearCache();
                 ZipFile.ExtractToDirectory(path, tmpDir, true);
 
                 // if we have a legacy style song.ogg, rename it to song.bin
@@ -110,9 +114,6 @@ namespace Jukebox
             
             AudioType audioType = AudioFormats.GetAudioType(tmpDir + "song.bin", out _);
             if (audioType == AudioType.UNKNOWN) throw new System.IO.InvalidDataException($"file at path {tmpDir + "song.bin"} is of unknown type");
-
-            // url = UnityWebRequest.EscapeURL(url);
-            // Debug.Log($"loading song from {url}");
             
             using (var www = UnityWebRequestMultimedia.GetAudioClip(url, audioType))
             {
@@ -155,8 +156,6 @@ namespace Jukebox
             AudioType audioType = AudioFormats.GetAudioType(tmpDir + "song.bin", out _);
             songChunk = new float[numSamples];
             songChunkLock = true;
-
-            // url = UnityWebRequest.EscapeURL(url);
 
             using (var www = UnityWebRequestMultimedia.GetAudioClip(url, audioType))
             {
@@ -202,14 +201,23 @@ namespace Jukebox
         /// <param name="songPath">path to a song file</param>
         public static void WriteSong(string songPath)
         {
+            if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot write audio file");
             if (songPath == string.Empty || songPath == null) throw new System.ArgumentNullException("path", "path cannot be null or empty");
             if (!File.Exists(songPath)) throw new System.IO.FileNotFoundException("path", $"Audio file does not exist at path {songPath}");
-            if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot write RIQ file");
+
+            if (AudioConverter != null)
+            {
+                AudioType type = AudioFormats.GetAudioType(songPath, out string specificType);
+                songPath = AudioConverter(songPath, type, specificType);
+                if (!File.Exists(songPath)) throw new System.IO.FileNotFoundException("path", $"converted audio file does not exist at path {songPath}");
+            }
 
             // check if songPath is a valid audio file
-            // user code can catch the invalid data exception and use other means to try and load the song
-            // (eg. ffmpeg conversion)
-            if (AudioFormats.GetAudioType(songPath, out _) == AudioType.UNKNOWN) throw new System.IO.InvalidDataException($"file at path {songPath} is of unknown type");
+            if (AudioFormats.GetAudioType(songPath, out _) == AudioType.UNKNOWN) 
+            {
+                // if no user processing is defined on unknown file type, or user processing returns unknown filetype, throw exception
+                throw new System.IO.InvalidDataException($"file at path {songPath} is of unknown type");
+            }
 
             if (!Directory.Exists(tmpDir))
                 Directory.CreateDirectory(tmpDir);
@@ -257,8 +265,16 @@ namespace Jukebox
         /// </summary>        
         public static void ClearCache()
         {
-            if (Directory.Exists(tmpDir))
-                Directory.Delete(tmpDir, true);
+            if (!IsCacheLocked())
+            {
+                if (Directory.Exists(tmpDir))
+                {
+                    foreach (string file in Directory.GetFiles(tmpDir, "*", SearchOption.AllDirectories))
+                    {
+                        if (file != tmpDir + "lock") File.Delete(file);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -268,26 +284,42 @@ namespace Jukebox
         /// <returns>is the cache locked? or false if the cache doesn't exist</returns>
         public static bool IsCacheLocked()
         {
-            return Directory.Exists(tmpDir) && File.Exists(tmpDir + "lock");
+            if (!Directory.Exists(tmpDir)) return false;
+            if (!File.Exists(tmpDir + "lock")) return false;
+            string lockID = File.ReadAllText(tmpDir + "lock");
+            return lockID != CacheID.ToString();
         }
 
         /// <summary>
         /// locks the riq cache
+        /// only needs to be called on app boot
+        /// don't call if locking is not necessary
         /// </summary>
         public static void LockCache()
         {
+            if (CacheID != null) return;
+
+            if (!Directory.Exists(tmpDir))
+                Directory.CreateDirectory(tmpDir);
+            
+            CacheID = Guid.NewGuid();
+
             if (Directory.Exists(tmpDir) && !File.Exists(tmpDir + "lock"))
             {
-                File.Create(tmpDir + "lock");
+                File.WriteAllText(tmpDir + "lock", CacheID.ToString());
             }
         }
 
         /// <summary>
         /// unlocks the riq cache
+        /// only needs to be called on app exit
         /// </summary>
         public static void UnlockCache()
         {
-            if (IsCacheLocked())
+            if (!Directory.Exists(tmpDir)) return;
+            if (!File.Exists(tmpDir + "lock")) return;
+            string lockID = File.ReadAllText(tmpDir + "lock");
+            if (lockID == CacheID.ToString())
             {
                 File.Delete(tmpDir + "lock");
             }
