@@ -1,6 +1,6 @@
 {
   "name": "com.rheavenstudio.jukebox",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "displayName": "Jukebox",
   "description": "Utility to parse and create RIQ-format rhythm game chart files, built for Heaven Studio.",
   "unity": "2019.1",

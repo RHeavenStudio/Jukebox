@@ -20,6 +20,7 @@ namespace Jukebox
 
         static Guid? CacheID = null;
         static string tmpDir = Application.temporaryCachePath + "/RIQCache/";
+        static string resDir = tmpDir + "Resources/";
         static AudioClip streamedAudioClip;
         static float[] songChunk;
         static bool songChunkLock = false;
@@ -182,6 +183,27 @@ namespace Jukebox
         }
 
         /// <summary>
+        /// gets the file path of a resource in the temporary cache
+        /// the first match will be returned
+        /// search can be further narrowed by specifying a subdirectory
+        /// the end app is expected to do its own processing on the returned path
+        /// </summary>
+        /// <param name="resourceName"></param>
+        /// <returns></returns>
+        /// <exception cref="System.ArgumentNullException"></exception>
+        public static string GetResourcePath(string resourceName, string subDir = "")
+        {
+            if (resourceName == string.Empty || resourceName == null) throw new System.ArgumentNullException("path", "resource name cannot be null or empty");
+            if (!Directory.Exists(resDir + subDir)) throw new System.IO.DirectoryNotFoundException($"RIQ resource directory does not exist at path {resDir}");
+            // find files with the same name
+            foreach (string file in Directory.GetFiles(resDir + subDir, resourceName + ".*", SearchOption.AllDirectories))
+            {
+                return file;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// writes a beatmap to the "remix.json" file in the temporary cache
         /// </summary>
         /// <param name="beatmap">RiqBeatmap to serialize</param>
@@ -224,6 +246,53 @@ namespace Jukebox
 
             string songDest = tmpDir + "song.bin";
             File.Copy(songPath, songDest, true);
+        }
+
+        /// <summary>
+        /// adds / replaces a resource to the riq
+        /// copies the resource to the temporary cache and will be included to the .riq file when packed
+        /// </summary>
+        /// <param name="resourcePath">path of the original resource</param>
+        /// <param name="subDir">subdirectory in the resources</param>
+        /// <exception cref="System.IO.IOException"></exception>
+        /// <exception cref="System.ArgumentNullException"></exception>
+        /// <exception cref="System.IO.FileNotFoundException"></exception>
+        public static void AddResource(string resourcePath, string subDir = "")
+        {
+            if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot write resource file");
+            if (resourcePath == string.Empty || resourcePath == null) throw new System.ArgumentNullException("path", "path cannot be null or empty");
+            if (!File.Exists(resourcePath)) throw new System.IO.FileNotFoundException("path", $"Resource file does not exist at path {resourcePath}");
+
+            if (!Directory.Exists(resDir))
+                Directory.CreateDirectory(resDir);
+            
+            if (subDir != string.Empty && subDir != null)
+            {
+                if (!Directory.Exists(resDir + subDir))
+                    Directory.CreateDirectory(resDir + subDir);
+            }
+
+            string destPath = resDir + subDir + Path.GetFileName(resourcePath) + Path.GetExtension(resourcePath);
+            File.Copy(resourcePath, destPath, true);
+        }
+
+        /// <summary>
+        /// removes a resource from the riq
+        /// all resources with the same name will be removed
+        /// </summary>
+        /// <param name="resourceName">name of the resource(s) to be removed</param>
+        /// <exception cref="System.IO.IOException"></exception>
+        /// <exception cref="System.ArgumentNullException"></exception>
+        public static void RemoveResource(string resourceName, string subDir = "")
+        {
+            if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot write resource file");
+            if (resourceName == string.Empty || resourceName == null) throw new System.ArgumentNullException("path", "path cannot be null or empty");
+            if (!Directory.Exists(resDir)) throw new System.IO.DirectoryNotFoundException($"RIQ resource directory does not exist at path {resDir}");
+            // find files with the same name
+            foreach (string file in Directory.GetFiles(resDir + subDir, resourceName + ".*", SearchOption.AllDirectories))
+            {
+                File.Delete(file);
+            }
         }
 
         /// <summary>
