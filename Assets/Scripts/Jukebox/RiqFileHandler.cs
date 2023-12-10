@@ -253,14 +253,16 @@ namespace Jukebox
         /// copies the resource to the temporary cache and will be included to the .riq file when packed
         /// </summary>
         /// <param name="resourcePath">path of the original resource</param>
+        /// <param name="resourceName">new name of the resource</param>
         /// <param name="subDir">subdirectory in the resources</param>
         /// <exception cref="System.IO.IOException"></exception>
         /// <exception cref="System.ArgumentNullException"></exception>
         /// <exception cref="System.IO.FileNotFoundException"></exception>
-        public static void AddResource(string resourcePath, string subDir = "")
+        public static void AddResource(string resourcePath, string resourceName, string subDir = "")
         {
             if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot write resource file");
             if (resourcePath == string.Empty || resourcePath == null) throw new System.ArgumentNullException("path", "path cannot be null or empty");
+            if (resourceName == string.Empty || resourcePath == null) throw new System.ArgumentNullException("name", "name of resource cannot be null or empty");
             if (!File.Exists(resourcePath)) throw new System.IO.FileNotFoundException("path", $"Resource file does not exist at path {resourcePath}");
 
             if (!Directory.Exists(resDir))
@@ -272,7 +274,7 @@ namespace Jukebox
                     Directory.CreateDirectory(resDir + subDir);
             }
 
-            string destPath = resDir + subDir + Path.GetFileName(resourcePath) + Path.GetExtension(resourcePath);
+            string destPath = resDir + subDir + resourceName;
             File.Copy(resourcePath, destPath, true);
         }
 
@@ -341,6 +343,11 @@ namespace Jukebox
                     foreach (string file in Directory.GetFiles(tmpDir, "*", SearchOption.AllDirectories))
                     {
                         if (file != tmpDir + "lock") File.Delete(file);
+                    }
+                    // wipe directories
+                    foreach (string dir in Directory.GetDirectories(tmpDir, "*", SearchOption.AllDirectories))
+                    {
+                        Directory.Delete(dir);
                     }
                 }
             }
