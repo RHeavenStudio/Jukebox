@@ -274,7 +274,8 @@ namespace Jukebox
                     Directory.CreateDirectory(resDir + subDir);
             }
 
-            string destPath = resDir + subDir + resourceName;
+            string extension = Path.GetExtension(resourcePath);
+            string destPath = resDir + subDir + resourceName + extension;
             File.Copy(resourcePath, destPath, true);
         }
 
@@ -347,7 +348,7 @@ namespace Jukebox
                     // wipe directories
                     foreach (string dir in Directory.GetDirectories(tmpDir, "*", SearchOption.AllDirectories))
                     {
-                        Directory.Delete(dir);
+                        Directory.Delete(dir, true);
                     }
                 }
             }
