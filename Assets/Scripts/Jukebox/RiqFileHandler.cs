@@ -345,10 +345,10 @@ namespace Jukebox
                     {
                         if (file != tmpDir + "lock") File.Delete(file);
                     }
-                    // wipe directories
+                    // wipe top level subdirectories
                     foreach (string dir in Directory.GetDirectories(tmpDir, "*", SearchOption.AllDirectories))
                     {
-                        Directory.Delete(dir, true);
+                        if (Directory.Exists(dir)) Directory.Delete(dir, true);
                     }
                 }
             }
