@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace Jukebox 
+namespace Jukebox
 {
     /// <summary>
     /// Handles file I/O with riq files
@@ -19,8 +19,8 @@ namespace Jukebox
         public static AudioConverterHandler AudioConverter;
 
         static Guid? CacheID = null;
-        static string tmpDir = Application.temporaryCachePath + "/RIQCache/";
-        static string resDir = tmpDir + "Resources/";
+        static string tmpDir = Path.Combine(Application.temporaryCachePath, "RIQCache");
+        static string resDir = Path.Combine(tmpDir, "Resources");
         static AudioClip streamedAudioClip;
         static float[] songChunk;
         static bool songChunkLock = false;
@@ -60,16 +60,19 @@ namespace Jukebox
                 ClearCache();
                 ZipFile.ExtractToDirectory(path, tmpDir, true);
 
+                string oldSongPath = Path.Combine(tmpDir, "song.ogg");
+                string songPath = Path.Combine(tmpDir, "song.bin");
+
                 // if we have a legacy style song.ogg, rename it to song.bin
-                if (File.Exists(tmpDir + "song.ogg"))
+                if (File.Exists(oldSongPath))
                 {
-                    File.Move(tmpDir + "song.ogg", tmpDir + "song.bin");
+                    File.Move(oldSongPath, songPath);
                 }
 
-                if (File.Exists(tmpDir + "song.bin"))
+                if (File.Exists(songPath))
                 {
-                    FileInfo inf = new FileInfo(tmpDir + "song.bin");
-                    if (inf.Length == 0) File.Delete(tmpDir + "song.bin");
+                    FileInfo inf = new FileInfo(songPath);
+                    if (inf.Length == 0) File.Delete(songPath);
                 }
             }
             catch (System.Exception e)
@@ -90,7 +93,7 @@ namespace Jukebox
         {
             if (tmpDir == string.Empty || tmpDir == null) throw new System.ArgumentNullException("path", "path cannot be null or empty");
 
-            string jsonPath = tmpDir + "remix.json";
+            string jsonPath = Path.Combine(tmpDir, "remix.json");
             if (!File.Exists(jsonPath)) throw new System.IO.FileNotFoundException("path", $"riq chart file does not exist at path {jsonPath}, was an RIQ file properly extracted?");
             string json = File.ReadAllText(jsonPath);
             RiqBeatmap beatmap = new RiqBeatmap(json);
@@ -106,16 +109,16 @@ namespace Jukebox
         /// <exception cref="System.IO.InvalidDataException">song file is of unknown type</exception>
         public static IEnumerator LoadSong(bool stream = true)
         {
-            string url = "file://" + tmpDir + "song.bin";
+            string url = "file://" + Path.Combine(tmpDir, "song.bin");
             streamedAudioClip = null;
-            if (!File.Exists(tmpDir + "song.bin")) throw new System.IO.FileNotFoundException($"Chart song file does not exist at path {tmpDir + "song.bin"}");
+            if (!File.Exists(Path.Combine(tmpDir, "song.bin"))) throw new System.IO.FileNotFoundException($"Chart song file does not exist at path {Path.Combine(tmpDir, "song.bin")}");
 
-            FileInfo inf = new FileInfo(tmpDir + "song.bin");
-            if (inf.Length == 0) throw new System.IO.FileNotFoundException($"Chart song file does not exist at path {tmpDir + "song.bin"}");
-            
-            AudioType audioType = AudioFormats.GetAudioType(tmpDir + "song.bin", out _);
-            if (audioType == AudioType.UNKNOWN) throw new System.IO.InvalidDataException($"file at path {tmpDir + "song.bin"} is of unknown type");
-            
+            FileInfo inf = new FileInfo(Path.Combine(tmpDir, "song.bin"));
+            if (inf.Length == 0) throw new System.IO.FileNotFoundException($"Chart song file does not exist at path {Path.Combine(tmpDir, "song.bin")}");
+
+            AudioType audioType = AudioFormats.GetAudioType(Path.Combine(tmpDir, "song.bin"), out _);
+            if (audioType == AudioType.UNKNOWN) throw new System.IO.InvalidDataException($"file at path {Path.Combine(tmpDir, "song.bin")} is of unknown type");
+
             using (var www = UnityWebRequestMultimedia.GetAudioClip(url, audioType))
             {
                 ((DownloadHandlerAudioClip)www.downloadHandler).compressed = false;
@@ -125,7 +128,7 @@ namespace Jukebox
                 {
                     yield return null;
                 }
-            
+
                 if (www.result == UnityWebRequest.Result.ConnectionError)
                 {
                     Debug.Log($"error loading song: {www.error}");
@@ -150,18 +153,18 @@ namespace Jukebox
             // we can't get sample data from streamed audio
             // temporarily load the entire song into memory to fill a buffer
 
-            string url = "file://" + tmpDir + "song.bin";
+            string url = "file://" + Path.Combine(tmpDir, "song.bin");
             AudioClip audio = null;
-            if (!File.Exists(tmpDir + "song.bin")) throw new System.IO.FileNotFoundException("path", $"Chart song file does not exist at path {tmpDir + "song.bin"}");
-            
-            AudioType audioType = AudioFormats.GetAudioType(tmpDir + "song.bin", out _);
+            if (!File.Exists(Path.Combine(tmpDir, "song.bin"))) throw new System.IO.FileNotFoundException("path", $"Chart song file does not exist at path {Path.Combine(tmpDir, "song.bin")}");
+
+            AudioType audioType = AudioFormats.GetAudioType(Path.Combine(tmpDir, "song.bin"), out _);
             songChunk = new float[numSamples];
             songChunkLock = true;
 
             using (var www = UnityWebRequestMultimedia.GetAudioClip(url, audioType))
             {
                 ((DownloadHandlerAudioClip)www.downloadHandler).streamAudio = false;
-                
+
                 yield return www.SendWebRequest();
 
                 if (www.result == UnityWebRequest.Result.ConnectionError)
@@ -212,7 +215,7 @@ namespace Jukebox
             if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot write RIQ file");
             if (!Directory.Exists(tmpDir))
                 Directory.CreateDirectory(tmpDir);
-            string jsonPath = tmpDir + "remix.json";
+            string jsonPath = Path.Combine(tmpDir, "remix.json");
             string json = beatmap.Serialize();
             File.WriteAllText(jsonPath, json, System.Text.Encoding.UTF8);
         }
@@ -235,7 +238,7 @@ namespace Jukebox
             }
 
             // check if songPath is a valid audio file
-            if (AudioFormats.GetAudioType(songPath, out _) == AudioType.UNKNOWN) 
+            if (AudioFormats.GetAudioType(songPath, out _) == AudioType.UNKNOWN)
             {
                 // if no user processing is defined on unknown file type, or user processing returns unknown filetype, throw exception
                 throw new System.IO.InvalidDataException($"file at path {songPath} is of unknown type");
@@ -244,7 +247,7 @@ namespace Jukebox
             if (!Directory.Exists(tmpDir))
                 Directory.CreateDirectory(tmpDir);
 
-            string songDest = tmpDir + "song.bin";
+            string songDest = Path.Combine(tmpDir, "song.bin");
             File.Copy(songPath, songDest, true);
         }
 
@@ -255,10 +258,11 @@ namespace Jukebox
         /// <param name="resourcePath">path of the original resource</param>
         /// <param name="resourceName">new name of the resource</param>
         /// <param name="subDir">subdirectory in the resources</param>
+        /// <param name="ignoreExtension">should the extension of the resource be ignored when replacing resources?</param>
         /// <exception cref="System.IO.IOException"></exception>
         /// <exception cref="System.ArgumentNullException"></exception>
         /// <exception cref="System.IO.FileNotFoundException"></exception>
-        public static void AddResource(string resourcePath, string resourceName, string subDir = "")
+        public static void AddResource(string resourcePath, string resourceName, string subDir = "", bool ignoreExtension = true)
         {
             if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot write resource file");
             if (resourcePath == string.Empty || resourcePath == null) throw new System.ArgumentNullException("path", "path cannot be null or empty");
@@ -267,15 +271,23 @@ namespace Jukebox
 
             if (!Directory.Exists(resDir))
                 Directory.CreateDirectory(resDir);
-            
+
             if (subDir != string.Empty && subDir != null)
             {
-                if (!Directory.Exists(resDir + subDir))
-                    Directory.CreateDirectory(resDir + subDir);
+                if (!Directory.Exists(Path.Combine(resDir, subDir)))
+                    Directory.CreateDirectory(Path.Combine(resDir, subDir));
             }
 
             string extension = Path.GetExtension(resourcePath);
-            string destPath = resDir + subDir + resourceName + extension;
+            if (ignoreExtension)
+            {
+                // find any file at the target path with the same name
+                foreach (string file in Directory.GetFiles(Path.Combine(resDir, subDir), resourceName + ".*", SearchOption.TopDirectoryOnly))
+                {
+                    File.Delete(file);
+                }
+            }
+            string destPath = Path.Combine(resDir, subDir, resourceName + extension);
             File.Copy(resourcePath, destPath, true);
         }
 
@@ -292,7 +304,7 @@ namespace Jukebox
             if (resourceName == string.Empty || resourceName == null) throw new System.ArgumentNullException("path", "path cannot be null or empty");
             if (!Directory.Exists(resDir)) throw new System.IO.DirectoryNotFoundException($"RIQ resource directory does not exist at path {resDir}");
             // find files with the same name
-            foreach (string file in Directory.GetFiles(resDir + subDir, resourceName + ".*", SearchOption.AllDirectories))
+            foreach (string file in Directory.GetFiles(Path.Combine(resDir, subDir), resourceName + ".*", SearchOption.AllDirectories))
             {
                 File.Delete(file);
             }
@@ -307,7 +319,7 @@ namespace Jukebox
             if (tmpDir == string.Empty || tmpDir == null) throw new System.ArgumentNullException("path", "temporary directory cannot be null or empty");
             if (destPath == string.Empty || destPath == null) throw new System.ArgumentNullException("path", "destination path cannot be null or empty");
 
-            string jsonPath = tmpDir + "remix.json";
+            string jsonPath = Path.Combine(tmpDir, "remix.json");
             if (!File.Exists(jsonPath)) throw new System.IO.FileNotFoundException("path", $"riq chart file does not exist at path {jsonPath}, was an RIQ file properly created?");
 
             if (File.Exists(destPath))
@@ -317,7 +329,7 @@ namespace Jukebox
 
                 File.Delete(destPath);
             }
-            ZipFile.CreateFromDirectory(tmpDir, destPath, System.IO.Compression.CompressionLevel.Optimal, false);
+            ZipHelper.CreateFromDirectory(tmpDir, destPath, System.IO.Compression.CompressionLevel.Optimal, false, filter: fileName => fileName != Path.Combine(tmpDir, "lock"));
         }
 
         /// <summary>
@@ -326,10 +338,10 @@ namespace Jukebox
         /// </summary>
         public async static Task BackupRiq()
         {
-            string bakDir = Application.persistentDataPath + "/RIQBackup/";
+            string bakDir = Path.Combine(Application.persistentDataPath, "RIQBackup");
             if (!Directory.Exists(bakDir))
                 Directory.CreateDirectory(bakDir);
-            await Task.Run(() => PackRiq(bakDir + "backup.riq", true));
+            await Task.Run(() => PackRiq(Path.Combine(bakDir + "backup.riq"), true));
         }
 
         /// <summary>
@@ -343,7 +355,7 @@ namespace Jukebox
                 {
                     foreach (string file in Directory.GetFiles(tmpDir, "*", SearchOption.AllDirectories))
                     {
-                        if (file != tmpDir + "lock") File.Delete(file);
+                        if (file != Path.Combine(tmpDir, "lock")) File.Delete(file);
                     }
                     // wipe top level subdirectories
                     foreach (string dir in Directory.GetDirectories(tmpDir, "*", SearchOption.AllDirectories))
@@ -362,8 +374,8 @@ namespace Jukebox
         public static bool IsCacheLocked()
         {
             if (!Directory.Exists(tmpDir)) return false;
-            if (!File.Exists(tmpDir + "lock")) return false;
-            string lockID = File.ReadAllText(tmpDir + "lock");
+            if (!File.Exists(Path.Combine(tmpDir, "lock"))) return false;
+            string lockID = File.ReadAllText(Path.Combine(tmpDir, "lock"));
             return lockID != CacheID.ToString();
         }
 
@@ -378,12 +390,12 @@ namespace Jukebox
 
             if (!Directory.Exists(tmpDir))
                 Directory.CreateDirectory(tmpDir);
-            
+
             CacheID = Guid.NewGuid();
 
-            if (Directory.Exists(tmpDir) && !File.Exists(tmpDir + "lock"))
+            if (Directory.Exists(tmpDir) && !File.Exists(Path.Combine(tmpDir, "lock")))
             {
-                File.WriteAllText(tmpDir + "lock", CacheID.ToString());
+                File.WriteAllText(Path.Combine(tmpDir, "lock"), CacheID.ToString());
             }
         }
 
@@ -394,11 +406,11 @@ namespace Jukebox
         public static void UnlockCache()
         {
             if (!Directory.Exists(tmpDir)) return;
-            if (!File.Exists(tmpDir + "lock")) return;
-            string lockID = File.ReadAllText(tmpDir + "lock");
+            if (!File.Exists(Path.Combine(tmpDir, "lock"))) return;
+            string lockID = File.ReadAllText(Path.Combine(tmpDir, "lock"));
             if (lockID == CacheID.ToString())
             {
-                File.Delete(tmpDir + "lock");
+                File.Delete(Path.Combine(tmpDir, "lock"));
             }
         }
     }
