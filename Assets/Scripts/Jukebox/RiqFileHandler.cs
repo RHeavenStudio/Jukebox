@@ -197,9 +197,9 @@ namespace Jukebox
         public static string GetResourcePath(string resourceName, string subDir = "")
         {
             if (resourceName == string.Empty || resourceName == null) throw new System.ArgumentNullException("path", "resource name cannot be null or empty");
-            if (!Directory.Exists(resDir + subDir)) throw new System.IO.DirectoryNotFoundException($"RIQ resource directory does not exist at path {resDir}");
+            if (!Directory.Exists(Path.Combine(resDir, subDir))) throw new System.IO.DirectoryNotFoundException($"RIQ resource directory does not exist at path {Path.Combine(resDir, subDir)}");
             // find files with the same name
-            foreach (string file in Directory.GetFiles(resDir + subDir, resourceName + ".*", SearchOption.AllDirectories))
+            foreach (string file in Directory.GetFiles(Path.Combine(resDir, subDir), resourceName + ".*", SearchOption.AllDirectories))
             {
                 return file;
             }
