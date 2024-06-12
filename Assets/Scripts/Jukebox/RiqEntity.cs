@@ -127,7 +127,13 @@ namespace Jukebox
                 data.dynamicData = new();
 
             if (!data.dynamicData.ContainsKey(name))
+            {
                 data.dynamicData.Add(name, defaultValue);
+            }
+            else if (data.dynamicData[name] == null)
+            {
+                data.dynamicData[name] = defaultValue;
+            }
         }
     }
 

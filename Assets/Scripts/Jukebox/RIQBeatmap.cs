@@ -111,6 +111,7 @@ namespace Jukebox
                 else
                 {
 #endif
+#if JUKEBOX_V0
                 Debug.Log("Detected \"v0\" riq (DynamicBeatmap)");
                 DynamicBeatmap riq0 = JsonConvert.DeserializeObject<DynamicBeatmap>(json, new JsonSerializerSettings()
                 {
@@ -119,20 +120,36 @@ namespace Jukebox
                 data = ConvertFromDynamicBeatmap(riq0);
                 RunUpdateHandlers(true);
                 return;
+#else
+                throw new Exception("v0 riq not supported.");
+#endif
 #if JUKEBOX_LEGACY_CONVERTER
                 }
 #endif
             }
 
+            // jukebox riq detected
+            Debug.Log($"Detected \"Jukebox\" riq, version {riqVersion.riqVersion}");
 
-            // v1 riq detected
-            Debug.Log("Detected \"v1\" riq (RiqBeatmapData)");
-            data = JsonConvert.DeserializeObject<RiqBeatmapData>(json, new JsonSerializerSettings()
+            switch (riqVersion.riqVersion)
             {
-                TypeNameHandling = TypeNameHandling.None,
-                NullValueHandling = NullValueHandling.Include,
-                ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
-            });
+                case "1":
+                    data = JsonConvert.DeserializeObject<RiqBeatmapData>(json, new JsonSerializerSettings()
+                    {
+                        TypeNameHandling = TypeNameHandling.None,
+                        NullValueHandling = NullValueHandling.Include,
+                        ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+                    });
+                    break;
+                default:
+                    data = JsonConvert.DeserializeObject<RiqBeatmapData>(json, new JsonSerializerSettings()
+                    {
+                        TypeNameHandling = TypeNameHandling.None,
+                        NullValueHandling = NullValueHandling.Include,
+                        ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+                    });
+                    break;
+            }
             RunUpdateHandlers();
         }
 
@@ -251,16 +268,21 @@ namespace Jukebox
         public RiqEntity AddNewEntity(string datamodel, double beat, float length)
         {
             RiqEntity e = new RiqEntity("riq__Entity", 0, datamodel, beat, length, null);
-            // {
-            //     type = "riq__Entity",
-            //     datamodel = datamodel,
-            //     version = 0,
-            //     beat = beat,
-            //     length = length,
-            //     dynamicData = new(),
-            // };
 
             e.CreateProperty("track", 0);
+            data.entities.Add(e);
+            return e;
+        }
+
+        public RiqEntity AddNewEntity(string datamodel, double beat, float length, Dictionary<string, object> dynamicData)
+        {
+            RiqEntity e = new RiqEntity("riq__Entity", 0, datamodel, beat, length, dynamicData);
+
+            foreach (var kvp in dynamicData)
+            {
+                e.CreateProperty(kvp.Key, kvp.Value);
+            }
+            
             data.entities.Add(e);
             return e;
         }
@@ -268,14 +290,6 @@ namespace Jukebox
         public RiqEntity AddNewTempoChange(double beat, float tempo)
         {
             RiqEntity e = new RiqEntity("riq__TempoChange", 0, "global/tempo change", beat, 0f, null);
-            // {
-            //     type = "riq__TempoChange",
-            //     datamodel = "global/tempo change",
-            //     version = 0,
-            //     beat = beat,
-            //     length = 0f,
-            //     dynamicData = new(),
-            // };
 
             e.CreateProperty("tempo", tempo);
             e.CreateProperty("swing", 0f);
@@ -285,20 +299,38 @@ namespace Jukebox
             return e;
         }
 
+        public RiqEntity AddNewTempoChange(double beat, float tempo, Dictionary<string, object> dynamicData)
+        {
+            RiqEntity e = new RiqEntity("riq__TempoChange", 0, "global/tempo change", beat, 0f, dynamicData);
+
+            foreach (var kvp in dynamicData)
+            {
+                e.CreateProperty(kvp.Key, kvp.Value);
+            }
+
+            data.tempoChanges.Add(e);
+            return e;
+        }
+
         public RiqEntity AddNewVolumeChange(double beat, float volume)
         {
             RiqEntity e = new RiqEntity("riq__VolumeChange", 0, "global/volume change", beat, 0f, null);
-            // {
-            //     type = "riq__VolumeChange",
-            //     datamodel = "global/volume change",
-            //     version = 0,
-            //     beat = beat,
-            //     length = 0f,
-            //     dynamicData = new(),
-            // };
 
             e.CreateProperty("volume", volume);
             e.CreateProperty("fade", EasingFunction.Ease.Instant);
+
+            data.volumeChanges.Add(e);
+            return e;
+        }
+
+        public RiqEntity AddNewVolumeChange(double beat, float volume, Dictionary<string, object> dynamicData)
+        {
+            RiqEntity e = new RiqEntity("riq__VolumeChange", 0, "global/volume change", beat, 0f, dynamicData);
+
+            foreach (var kvp in dynamicData)
+            {
+                e.CreateProperty(kvp.Key, kvp.Value);
+            }
 
             data.volumeChanges.Add(e);
             return e;
@@ -314,6 +346,20 @@ namespace Jukebox
             return e;
         }
 
+        public RiqEntity AddNewSectionMarker(double beat, string markerName, Dictionary<string, object> dynamicData)
+        {
+            RiqEntity e = new RiqEntity("riq__SectionMarker", 0, "global/section marker", beat, 0f, dynamicData);
+
+            foreach (var kvp in dynamicData)
+            {
+                e.CreateProperty(kvp.Key, kvp.Value);
+            }
+
+            data.beatmapSections.Add(e);
+            return e;
+        }
+
+#if JUKEBOX_V0
         static RiqBeatmapData ConvertFromDynamicBeatmap(DynamicBeatmap riq)
         {
             Debug.Log("Updating \"v0\" riq (DynamicBeatmap) to \"v1\" riq (RiqBeatmapData)");
@@ -413,6 +459,7 @@ namespace Jukebox
             Debug.Log("Updating \"v0\" riq (DynamicBeatmap) to \"v1\" riq (RiqBeatmapData) - done");
             return data;
         }
+#endif
     }
 
     [Serializable]
