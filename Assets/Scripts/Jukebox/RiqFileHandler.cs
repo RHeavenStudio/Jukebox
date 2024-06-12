@@ -22,6 +22,7 @@ namespace Jukebox
         static string tmpDir = Path.Combine(Application.temporaryCachePath, "RIQCache");
         static string resDir = Path.Combine(tmpDir, "Resources");
         static AudioClip streamedAudioClip;
+        static UnityWebRequest streamedAudioRequest;
         static float[] songChunk;
         static bool songChunkLock = false;
 
@@ -32,6 +33,14 @@ namespace Jukebox
             get
             {
                 return streamedAudioClip;
+            }
+        }
+
+        public static UnityWebRequest StreamedAudioRequest
+        {
+            get
+            {
+                return streamedAudioRequest;
             }
         }
 
@@ -107,7 +116,7 @@ namespace Jukebox
         /// <param name="stream">should the audio be streamed?</param>
         /// <exception cref="System.IO.FileNotFoundException">song file doesn't exist in temporary cache</exception>
         /// <exception cref="System.IO.InvalidDataException">song file is of unknown type</exception>
-        public static IEnumerator LoadSong(bool stream = true)
+        public static IEnumerator LoadSong(bool stream = true, bool disposeHandler = true)
         {
             string url = "file://" + Path.Combine(tmpDir, "song.bin");
             streamedAudioClip = null;
@@ -119,25 +128,41 @@ namespace Jukebox
             AudioType audioType = AudioFormats.GetAudioType(Path.Combine(tmpDir, "song.bin"), out _);
             if (audioType == AudioType.UNKNOWN) throw new System.IO.InvalidDataException($"file at path {Path.Combine(tmpDir, "song.bin")} is of unknown type");
 
-            using (var www = UnityWebRequestMultimedia.GetAudioClip(url, audioType))
+            streamedAudioRequest = UnityWebRequestMultimedia.GetAudioClip(url, audioType);
+            ((DownloadHandlerAudioClip)streamedAudioRequest.downloadHandler).compressed = false;
+            ((DownloadHandlerAudioClip)streamedAudioRequest.downloadHandler).streamAudio = stream;
+            streamedAudioRequest.SendWebRequest();
+            while (!(streamedAudioRequest.result == UnityWebRequest.Result.ConnectionError) && streamedAudioRequest.downloadedBytes < 4096)
             {
-                ((DownloadHandlerAudioClip)www.downloadHandler).compressed = false;
-                ((DownloadHandlerAudioClip)www.downloadHandler).streamAudio = stream;
-                www.SendWebRequest();
-                while (!(www.result == UnityWebRequest.Result.ConnectionError) && www.downloadedBytes < 4096)
-                {
-                    yield return null;
-                }
-
-                if (www.result == UnityWebRequest.Result.ConnectionError)
-                {
-                    Debug.Log($"error loading song: {www.error}");
-                    yield break;
-                }
-
-                Debug.Log("loaded song");
-                streamedAudioClip = ((DownloadHandlerAudioClip)www.downloadHandler).audioClip;
                 yield return null;
+            }
+
+            if (streamedAudioRequest.result == UnityWebRequest.Result.ConnectionError)
+            {
+                Debug.Log($"error loading song: {streamedAudioRequest.error}");
+                yield break;
+            }
+
+            Debug.Log($"Jukebox loaded song {url} ({streamedAudioRequest.downloadedBytes} bytes)");
+            streamedAudioClip = ((DownloadHandlerAudioClip)streamedAudioRequest.downloadHandler).audioClip;
+            yield return null;
+
+            if (disposeHandler)
+            {
+                streamedAudioRequest.Dispose();
+                streamedAudioRequest = null;
+            }
+        }
+
+        /// <summary>
+        /// Disposes the UnityWebRequest used to load the song file
+        /// </summary>
+        public static void DisposeAudioWebRequest()
+        {
+            if (streamedAudioRequest != null)
+            {
+                streamedAudioRequest.Dispose();
+                streamedAudioRequest = null;
             }
         }
 
