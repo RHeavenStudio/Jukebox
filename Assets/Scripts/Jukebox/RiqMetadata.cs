@@ -1,4 +1,17 @@
-public class RiqMetadata
+using Newtonsoft.Json;
+
+namespace Jukebox
 {
-    public int Version { get; private set; }
+    [JsonConverter(typeof(RiqMetadataConverter))]
+    public class RiqMetadata
+    {
+        public int Version { get; private set; }
+        public string Origin { get; private set; }
+
+        public RiqMetadata(int version = 2, string origin = "Jukebox")
+        {
+            Version = version;
+            Origin = origin;
+        }
+    }
 }

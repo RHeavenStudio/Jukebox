@@ -4,7 +4,7 @@ using Newtonsoft.Json.Linq;
 
 namespace Jukebox
 {
-    public class RiqBeatmap2Converter : JsonConverter<RiqBeatmap2>
+    internal class RiqBeatmap2Converter : JsonConverter<RiqBeatmap2>
     {
         public override RiqBeatmap2 ReadJson(JsonReader reader, Type objectType, RiqBeatmap2 existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
@@ -14,16 +14,17 @@ namespace Jukebox
             JObject obj = JObject.Load(reader);
 
             int version = obj["version"].Value<int>();
-            string origin = obj["origin"].Value<string>();
+            double offset = obj["offset"].Value<double>();
 
-            RiqBeatmap2 beatmap = new(version, origin);
+            RiqBeatmap2 beatmap = new(version);
+            beatmap.WithOffset(offset);
 
             JArray entities = obj["entities"].Value<JArray>();
 
             foreach (JToken token in entities)
             {
                 RiqEntity2 entity = serializer.Deserialize<RiqEntity2>(token.CreateReader());
-                beatmap.Entities.Add(entity);
+                beatmap.AddEntity(entity);
             }
 
             return beatmap;
@@ -36,8 +37,8 @@ namespace Jukebox
             writer.WritePropertyName("version");
             writer.WriteValue(value.Version);
 
-            writer.WritePropertyName("origin");
-            writer.WriteValue(value.Origin);
+            writer.WritePropertyName("offset");
+            writer.WriteValue(value.Offset);
 
             writer.WritePropertyName("entities");
             writer.WriteStartArray();

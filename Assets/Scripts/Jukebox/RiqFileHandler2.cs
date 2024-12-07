@@ -39,12 +39,12 @@ namespace Jukebox
         const int VERSION = 2;
 
         static Guid? CacheID = null;
-        static string tempDir = Path.Combine(Application.temporaryCachePath, "RIQCache");
-        static string treeDir = Path.Combine(tempDir, "Current");
-        static string resourcesDir = Path.Combine(treeDir, "Resources");
-        static string audioDir = Path.Combine(treeDir, "Audio");
-        static string chartDir = Path.Combine(treeDir, "Charts");
-        static string metadataDir = Path.Combine(treeDir, ".meta");
+        static readonly string tempDir = Path.Combine(Application.temporaryCachePath, "RIQCache");
+        static readonly string treeDir = Path.Combine(tempDir, "Current");
+        static readonly string resourcesDir = Path.Combine(treeDir, "Resources");
+        static readonly string audioDir = Path.Combine(treeDir, "Music");
+        static readonly string chartDir = Path.Combine(treeDir, "Charts");
+        static readonly string metadataDir = Path.Combine(treeDir, ".meta");
 
 
         static AudioClip streamedAudioClip;
@@ -71,6 +71,7 @@ namespace Jukebox
             {
                 ClearCache();
                 ZipFile.ExtractToDirectory(path, treeDir, true);
+                currentMetadata = null;
             }
             catch (Exception e)
             {
@@ -94,7 +95,7 @@ namespace Jukebox
         /// <exception cref="InvalidOperationException">RIQ file is invalid or is an unsupported legacy format.</exception>
         public static int CheckVersion()
         {
-            if (!Directory.Exists(metadataDir))
+            if (!File.Exists(metadataDir))
             {
 #if JUKEBOX_V1
                 string oldJsonPath = Path.Combine(treeDir, "remix.json");
@@ -153,7 +154,7 @@ namespace Jukebox
             }
         }
 
-        static RiqBeatmap2 LoadChart(int index)
+        public static RiqBeatmap2 ReadChart(int index)
         {
             string chartName = $"chart{index}";
             string chartPath = Path.Combine(chartDir, chartName + ".json");
@@ -168,7 +169,7 @@ namespace Jukebox
             return JsonConvert.DeserializeObject<RiqBeatmap2>(chartJson);
         }
 
-        static IEnumerator LoadSong(int index)
+        public static IEnumerator ReadAudio(int index)
         {
             string songName = $"song{index}";
             streamedAudioClip = null;
@@ -206,9 +207,72 @@ namespace Jukebox
             streamedAudioRequest.Dispose();
             streamedAudioRequest = null;
         }
+
+        public static AudioClip GetLoadedSong()
+        {
+            return streamedAudioClip;
+        }
         #endregion
 
         #region Write
+        public static void WriteMetadata(RiqMetadata metadata)
+        {
+            if (metadata is null) throw new ArgumentNullException("metadata", "metadata cannot be null");
+            if (IsCacheLocked()) throw new IOException("RIQ cache is locked, cannot write metadata");
+
+            if (!Directory.Exists(treeDir))
+                Directory.CreateDirectory(treeDir);
+
+            string meta = JsonConvert.SerializeObject(metadata);
+            File.WriteAllText(metadataDir, meta);
+        }
+
+        public static void WriteChart(int index, RiqBeatmap2 chart)
+        {
+            if (chart is null) throw new ArgumentNullException("chart", "chart cannot be null");
+            if (IsCacheLocked()) throw new IOException("RIQ cache is locked, cannot write chart");
+            if (index < 0) throw new InvalidOperationException("chart index must be greater than 0");
+
+            if (!Directory.Exists(chartDir))
+                Directory.CreateDirectory(chartDir);
+
+            string chartName = $"chart{index}";
+            string chartPath = Path.Combine(chartDir, chartName + ".json");
+            string chartJson = JsonConvert.SerializeObject(chart);
+            File.WriteAllText(chartPath, chartJson);
+        }
+
+        public static void WriteAudio(int index, string audioPath)
+        {
+            if (audioPath == string.Empty || audioPath == null) throw new ArgumentNullException("audioPath", "audioPath cannot be null or empty");
+            if (!File.Exists(audioPath)) throw new FileNotFoundException("audioPath", $"audio file does not exist at path {audioPath}");
+            if (IsCacheLocked()) throw new IOException("RIQ cache is locked, cannot write audio");
+            if (index < 0) throw new InvalidOperationException("audio index must be greater than 0");
+            // check if songPath is a valid audio file
+            if (AudioFormats.GetAudioType(audioPath, out _) == AudioType.UNKNOWN)
+            {
+                // if no user processing is defined on unknown file type, or user processing returns unknown filetype, throw exception
+                throw new System.IO.InvalidDataException($"file at path {audioPath} is of unknown type");
+            }
+
+            if (!Directory.Exists(audioDir))
+                Directory.CreateDirectory(audioDir);
+
+            string songName = $"song{index}";
+            
+            string[] files = Directory.GetFiles(audioDir, songName + ".*");
+            if (files.Length != 0)
+            {
+                foreach (string file in files)
+                {
+                    File.Delete(file);
+                }
+            }
+
+            string songPath = Path.Combine(audioDir, songName + Path.GetExtension(audioPath));
+            File.Copy(audioPath, songPath, true);
+        }
+
         public static void Pack(string destPath, bool backup = true)
         {
 #if JUKEBOX_V1

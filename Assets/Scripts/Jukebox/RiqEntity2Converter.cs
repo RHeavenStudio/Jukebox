@@ -5,7 +5,7 @@ using Newtonsoft.Json.Linq;
 
 namespace Jukebox
 {
-    public class RiqEntity2Converter : JsonConverter<RiqEntity2>
+    internal class RiqEntity2Converter : JsonConverter<RiqEntity2>
     {
         public override RiqEntity2 ReadJson(JsonReader reader, Type objectType, RiqEntity2 existingValue, bool hasExistingValue, JsonSerializer serializer)
         {

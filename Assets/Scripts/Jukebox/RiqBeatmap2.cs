@@ -10,20 +10,25 @@ namespace Jukebox
         public List<RiqEntity2> Entities { get => entities; }
 
         public int Version { get => version; }
-        public string Origin { get => origin; }
+        public double Offset { get => offset; }
 
+        double offset;
         int version;
-        string origin;
 
-        public RiqBeatmap2(int version = 2, string origin = "Jukebox")
+        public RiqBeatmap2(int version = 2)
         {
             this.version = version;
-            this.origin = origin;
         }
 
         public List<RiqEntity2> FindEntitiesByType(string type)
         {
             return entities.FindAll(e => e.Type == type);
+        }
+
+        public RiqEntity2 AddEntity(RiqEntity2 entity)
+        {
+            entities.Add(entity);
+            return entity;
         }
 
         public RiqEntity2 AddEntity(string datamodel, string type = "riq__Entity")
@@ -41,6 +46,12 @@ namespace Jukebox
                 TypeNameHandling = TypeNameHandling.Arrays,
                 ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
             });
+        }
+
+        public RiqBeatmap2 WithOffset(double offset)
+        {
+            this.offset = offset;
+            return this;
         }
 
 #region Obsolete
