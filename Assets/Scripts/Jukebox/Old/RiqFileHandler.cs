@@ -8,6 +8,7 @@ using UnityEngine.Networking;
 
 namespace Jukebox
 {
+#if JUKEBOX_V1
     /// <summary>
     /// Handles file I/O with riq files
     /// Methods here can be changed to suit the use case of the game
@@ -92,6 +93,14 @@ namespace Jukebox
             }
 
             return treeDir;
+        }
+
+        /// <summary>
+        /// Upgrades the structure of the cache to a v2+ riq structure
+        /// </summary>
+        public static void UpgradeStructure()
+        {
+
         }
 
         /// <summary>
@@ -432,4 +441,5 @@ namespace Jukebox
             }
         }
     }
+#endif
 }

@@ -8,6 +8,7 @@ using Newtonsoft.Json.Serialization;
 
 namespace Jukebox
 {
+#if JUKEBOX_V1
     public class RiqEntityConverter : JsonConverter<RiqEntity>
     {
         public override void WriteJson(JsonWriter writer, RiqEntity value, JsonSerializer serializer)
@@ -189,4 +190,5 @@ namespace Jukebox
             });
         }
     }
+#endif
 }

@@ -286,6 +286,22 @@ namespace Jukebox.Tests
             }
         }
 
+        public void OnPack2Pressed()
+        {
+            var path = StandaloneFileBrowser.SaveFilePanel("Save packed RIQ v2", "", "remix", "riq");
+            try
+            {
+                RiqFileHandler.PackRiq(path);
+                statusTxt.text = "Packed RIQ successfully!";
+                return;
+            }
+            catch (System.Exception e)
+            {
+                statusTxt.text = $"Error packing RIQ: {e.Message}";
+                return;
+            }
+        }
+
         public void OnSliderValueChanged()
         {
             if (!audioSource.isPlaying)

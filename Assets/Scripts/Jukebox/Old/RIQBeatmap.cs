@@ -8,6 +8,7 @@ using Jukebox.Legacy;
 
 namespace Jukebox
 {
+#if JUKEBOX_V1
     public class RiqBeatmap
     {
         public delegate RiqBeatmapData? BeatmapUpdateHandler(string version, RiqBeatmapData data);
@@ -475,4 +476,5 @@ namespace Jukebox
         public List<RiqEntity> volumeChanges;
         public List<RiqEntity> beatmapSections;
     }
+#endif
 }

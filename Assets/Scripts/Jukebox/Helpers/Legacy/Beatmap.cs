@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 
 namespace Jukebox.Legacy
 {
+#if JUKEBOX_V0
     [Serializable]
     public class Beatmap
     {
@@ -83,4 +84,5 @@ namespace Jukebox.Legacy
             }
         }
     }
+#endif
 }
