@@ -25,7 +25,7 @@ namespace Jukebox
         /// </summary>
         /// <param name="type">Type of entity to search for</param>
         /// <returns>List of <see cref="RiqEntity"/> objects with matching type</returns>
-        public List<RiqEntity> FindEntitiesByType(string type)
+        public List<RiqEntity> FindAllEntitiesByType(string type)
         {
             return entities.FindAll(e => e.Type == type);
         }
@@ -104,12 +104,12 @@ namespace Jukebox
         }
 
 #region Obsolete
-        [System.Obsolete("Use FindEntitiesByType instead.")]
-        public List<RiqEntity> TempoChanges { get => FindEntitiesByType("riq__TempoChange"); }
-        [System.Obsolete("Use FindEntitiesByType instead.")]
-        public List<RiqEntity> VolumeChanges { get => FindEntitiesByType("riq__VolumeChange"); }
-        [System.Obsolete("Use FindEntitiesByType instead.")]
-        public List<RiqEntity> SectionMarkers { get => FindEntitiesByType("riq__SectionMarker"); }
+        [System.Obsolete("Use FindAllEntitiesByType instead.")]
+        public List<RiqEntity> TempoChanges { get => FindAllEntitiesByType("riq__TempoChange"); }
+        [System.Obsolete("Use FindAllEntitiesByType instead.")]
+        public List<RiqEntity> VolumeChanges { get => FindAllEntitiesByType("riq__VolumeChange"); }
+        [System.Obsolete("Use FindAllEntitiesByType instead.")]
+        public List<RiqEntity> SectionMarkers { get => FindAllEntitiesByType("riq__SectionMarker"); }
 
         [System.Obsolete("Use AddEntity instead and manually specify the type.")]
         public RiqEntity AddNewEntity(string datamodel, double beat, float length)
@@ -124,7 +124,7 @@ namespace Jukebox
             return e;
         }
 
-        [System.Obsolete("Use AddEntity instead and manually specify the type.")]
+        [System.Obsolete("Use AddEntity instead and specify the type.")]
         public RiqEntity AddNewEntity(string datamodel, double beat, float length, Dictionary<string, object> dynamicData)
         {
             RiqEntity e = AddNewEntity(datamodel, beat, length);
@@ -137,7 +137,7 @@ namespace Jukebox
             return e;
         }
 
-        [System.Obsolete("Use AddEntity instead and manually specify the type.")]
+        [System.Obsolete("Use AddEntity instead and specify the type.")]
         public RiqEntity AddNewTempoChange(double beat, float tempo)
         {
             RiqEntity e = CreateEntity("global/tempo change", "riq__TempoChange");
@@ -151,7 +151,7 @@ namespace Jukebox
             return e;
         }
 
-        [System.Obsolete("Use AddEntity instead and manually specify the type.")]
+        [System.Obsolete("Use AddEntity instead and specify the type.")]
         public RiqEntity AddNewTempoChange(double beat, float tempo, Dictionary<string, object> dynamicData)
         {
             RiqEntity e = AddNewTempoChange(beat, tempo);
@@ -164,7 +164,7 @@ namespace Jukebox
             return e;
         }
 
-        [System.Obsolete("Use AddEntity instead and manually specify the type.")]
+        [System.Obsolete("Use AddEntity instead and specify the type.")]
         public RiqEntity AddNewVolumeChange(double beat, float volume)
         {
             RiqEntity e = CreateEntity("global/volume change", "riq__VolumeChange");
@@ -176,7 +176,7 @@ namespace Jukebox
             return e;
         }
 
-        [System.Obsolete("Use AddEntity instead and manually specify the type.")]
+        [System.Obsolete("Use AddEntity instead and specify the type.")]
         public RiqEntity AddNewVolumeChange(double beat, float volume, Dictionary<string, object> dynamicData)
         {
             RiqEntity e = AddNewVolumeChange(beat, volume);
@@ -189,7 +189,7 @@ namespace Jukebox
             return e;
         }
 
-        [System.Obsolete("Use AddEntity instead and manually specify the type.")]
+        [System.Obsolete("Use AddEntity instead and specify the type.")]
         public RiqEntity AddNewSectionMarker(double beat, string markerName)
         {
             RiqEntity e = CreateEntity("global/section marker", "riq__SectionMarker");
@@ -201,7 +201,7 @@ namespace Jukebox
             return e;
         }
 
-        [System.Obsolete("Use AddEntity instead and manually specify the type.")]
+        [System.Obsolete("Use AddEntity instead and specify the type.")]
         public RiqEntity AddNewSectionMarker(double beat, string markerName, Dictionary<string, object> dynamicData)
         {
             RiqEntity e = AddNewSectionMarker(beat, markerName);
