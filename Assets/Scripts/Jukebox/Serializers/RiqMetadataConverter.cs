@@ -52,7 +52,7 @@ namespace Jukebox
             foreach (RiqHashedKey key in value.Keys)
             {
                 writer.WritePropertyName(key.StringValue);
-                serializer.Serialize(writer, value.GetEntry(key.Hash));
+                serializer.Serialize(writer, value[key.Hash]);
             }
             writer.WriteEndObject();
 

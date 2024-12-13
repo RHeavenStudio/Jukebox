@@ -15,42 +15,76 @@ namespace Jukebox
         readonly List<RiqHashedKey> keys = new();
         readonly Dictionary<int, object> metadata = new();
 
+        public object this[string key]
+        {
+            get
+            {
+                RiqHashedKey hashedKey = RiqHashedKey.CreateFrom(key);
+                return metadata[hashedKey.Hash];
+            }
+            set
+            {
+                RiqHashedKey hashedKey = RiqHashedKey.CreateFrom(key);
+                if (metadata.ContainsKey(hashedKey.Hash))
+                {
+                    metadata[hashedKey.Hash] = value;
+                }
+                else
+                {
+                    CreateEntry(key, value);
+                }
+            }
+        }
+
+        public object this[int key]
+        {
+            get
+            {
+                return metadata[key];
+            }
+            set
+            {
+                if (metadata.ContainsKey(key))
+                {
+                    metadata[key] = value;
+                }
+                else
+                {
+                    metadata.Add(key, value);
+                }
+            }
+        }
+
         public RiqMetadata(int version = 2, string origin = "Jukebox")
         {
             Version = version;
             Origin = origin;
         }
 
+        /// <summary>
+        /// Create a new entry in the metadata.
+        /// </summary>
+        /// <param name="key">Key of the entry</param>
+        /// <param name="value">Value of the entry</param>
+        /// <returns>A <see cref="RiqHashedKey"/> object representing the key</returns>
         public RiqHashedKey CreateEntry(string key, object value)
         {
             RiqHashedKey hashedKey = RiqHashedKey.CreateFrom(key);
-            return CreateEntry(hashedKey, value);
+            metadata.Add(hashedKey.Hash, value);
+            return hashedKey;
         }
 
-        public RiqHashedKey CreateEntry(RiqHashedKey key, object value)
+        /// <summary>
+        /// Add a new entry to the metadata.
+        /// </summary>
+        /// <param name="key">Key of the entry</param>
+        /// <param name="value">Value of the entry</param>
+        /// <param name="hashedKey">A <see cref="RiqHashedKey"/> object representing the key</returns>
+        /// <returns>This <see cref="RiqMetadata"/> object</returns>
+        public RiqMetadata AddEntry(string key, object value, out RiqHashedKey hashedKey)
         {
-            keys.Add(key);
-            metadata.Add(key.Hash, value);
-            return key;
-        }
-
-        public object GetEntry(string key)
-        {
-            RiqHashedKey hashedKey = RiqHashedKey.CreateFrom(key);
-            if (keys.Contains(hashedKey))
-            {
-                return metadata[hashedKey.Hash];
-            }
-            return null;
-        }
-
-        public object GetEntry(int hash)
-        {
-            if (metadata.ContainsKey(hash))
-            {
-                return metadata[hash];
-            }
-            return null;
+            hashedKey = CreateEntry(key, value);
+            return this;
         }
     }
 }

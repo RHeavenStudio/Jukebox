@@ -43,7 +43,7 @@ namespace Jukebox
             foreach (JToken token in entities)
             {
                 RiqEntity entity = entityConverter.ReadJson(token.CreateReader(), typeof(RiqEntity), null, serializer) as RiqEntity;
-                beatmap.AddEntity(entity);
+                beatmap.CreateEntity(entity);
             }
 
             return beatmap;

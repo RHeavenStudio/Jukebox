@@ -67,7 +67,14 @@ namespace Jukebox
             }
             set
             {
-                dynamicData[hash] = value;
+                if (dynamicData.ContainsKey(hash))
+                {
+                    dynamicData[hash] = value;
+                }
+                else
+                {
+                    dynamicData.Add(hash, value);
+                }
             }
         }
 
@@ -89,6 +96,10 @@ namespace Jukebox
             this.Guid = Guid.NewGuid();
         }
 
+        /// <summary>
+        /// Creates a deep copy of this <see cref="RiqEntity"/> object.
+        /// </summary>
+        /// <returns>A copy of the entity</returns>
         public RiqEntity DeepCopy()
         {
             RiqEntity copy = new RiqEntity(Type, DatamodelHash, Version);
@@ -100,12 +111,24 @@ namespace Jukebox
             return copy;
         }
 
-        public RiqHashedKey CreateProperty(string name, object defaultValue)
+        /// <summary>
+        /// Create a new property with a default value.
+        /// </summary>
+        /// <param name="key">Key of the property</param>
+        /// <param name="defaultValue">Default value of the property</param>
+        /// <returns>A <see cref="RiqHashedKey"/> object representing the property's key</returns>
+        public RiqHashedKey CreateProperty(string key, object defaultValue)
         {
-            RiqHashedKey key = RiqHashedKey.CreateFrom(name);
-            return CreateProperty(key, defaultValue);
+            RiqHashedKey hashkey = RiqHashedKey.CreateFrom(key);
+            return CreateProperty(hashkey, defaultValue);
         }
 
+        /// <summary>
+        /// Create a new property with a default value.
+        /// </summary>
+        /// <param name="key">Key of the property</param>
+        /// <param name="defaultValue">Default value of the property</param>
+        /// <returns>A <see cref="RiqHashedKey"/> object representing the property's key</returns>
         public RiqHashedKey CreateProperty(RiqHashedKey key, object defaultValue)
         {
             if (!keys.Contains(key))
@@ -121,15 +144,28 @@ namespace Jukebox
             return key;
         }
 
-        public RiqEntity AddProperty(string name, object defaultValue, out RiqHashedKey key)
+        /// <summary>
+        /// Add a new property to the entity.
+        /// </summary>
+        /// <param name="key">Key of the property</param>
+        /// <param name="defaultValue">Default value of the property</param>
+        /// <param name="hashkey">A <see cref="RiqHashedKey"/> object representing the property's key</returns>
+        /// <returns>This <see cref="RiqEntity"/> object</returns>
+        public RiqEntity AddProperty(string key, object defaultValue, out RiqHashedKey hashkey)
         {
-            key = CreateProperty(name, defaultValue);
+            hashkey = CreateProperty(key, defaultValue);
             return this;
         }
 
-        public RiqEntity AddProperty(RiqHashedKey key, object defaultValue, out RiqHashedKey keyOut)
+        /// <summary>
+        /// Add a new property to the entity.
+        /// </summary>
+        /// <param name="key">Key of the property</param>
+        /// <param name="defaultValue">Default value of the property</param>
+        /// <returns>This <see cref="RiqEntity"/> object</returns>
+        public RiqEntity AddProperty(RiqHashedKey key, object defaultValue)
         {
-            keyOut = CreateProperty(key, defaultValue);
+            CreateProperty(key, defaultValue);
             return this;
         }
     }

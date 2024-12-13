@@ -451,22 +451,22 @@ namespace Jukebox
             foreach (OldRiqEntity oldEntity in oldBeatmap.data.entities)
             {
                 RiqEntity entity = ConvertOldEntity(oldEntity);
-                beatmap.AddEntity(entity);
+                beatmap.CreateEntity(entity);
             }
             foreach (OldRiqEntity oldTempoChange in oldBeatmap.data.tempoChanges)
             {
                 RiqEntity entity = ConvertOldEntity(oldTempoChange);
-                beatmap.AddEntity(entity);
+                beatmap.CreateEntity(entity);
             }
             foreach (OldRiqEntity oldVolumeChange in oldBeatmap.data.volumeChanges)
             {
                 RiqEntity entity = ConvertOldEntity(oldVolumeChange);
-                beatmap.AddEntity(entity);
+                beatmap.CreateEntity(entity);
             }
             foreach (OldRiqEntity oldSectionMarker in oldBeatmap.data.beatmapSections)
             {
                 RiqEntity entity = ConvertOldEntity(oldSectionMarker);
-                beatmap.AddEntity(entity);
+                beatmap.CreateEntity(entity);
             }
 
             WriteMetadata(metadata);

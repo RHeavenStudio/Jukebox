@@ -20,24 +20,79 @@ namespace Jukebox
             this.version = version;
         }
 
+        /// <summary>
+        /// Find all entities of a specific type.
+        /// </summary>
+        /// <param name="type">Type of entity to search for</param>
+        /// <returns>List of <see cref="RiqEntity"/> objects with matching type</returns>
         public List<RiqEntity> FindEntitiesByType(string type)
         {
             return entities.FindAll(e => e.Type == type);
         }
 
-        public RiqEntity AddEntity(RiqEntity entity)
+        /// <summary>
+        /// Create a new <see cref="RiqEntity"/> object and add it to the beatmap.
+        /// </summary>
+        /// <param name="entity">Entity to add</param>
+        /// <returns>The added entity</returns>
+        public RiqEntity CreateEntity(RiqEntity entity)
         {
             entities.Add(entity);
             return entity;
         }
 
-        public RiqEntity AddEntity(string datamodel, string type = "riq__Entity")
+        /// <summary>
+        /// Create a new <see cref="RiqEntity"/> object and add it to the beatmap.
+        /// </summary>
+        /// <param name="datamodel">Datamodel of the new entity</param>
+        /// <param name="type">Type of the new entity</param>
+        /// <returns>The added entity</returns>
+        public RiqEntity CreateEntity(string datamodel, string type = "riq__Entity")
         {
             RiqEntity entity = new(type, datamodel, version);
             entities.Add(entity);
             return entity;
         }
 
+        /// <summary>
+        /// Add a new <see cref="RiqEntity"/> object to the beatmap.
+        /// </summary>
+        /// <param name="entity">The entity to add</param>
+        /// <returns>This <see cref="RiqBeatmap"/> object</returns>
+        public RiqBeatmap AddEntity(RiqEntity entity)
+        {
+            CreateEntity(entity);
+            return this;
+        }
+
+        /// <summary>
+        /// Add a new <see cref="RiqEntity"/> object to the beatmap.
+        /// </summary>
+        /// <param name="datamodel">Datamodel of the new entity</param>
+        /// <param name="type">Type of the new entity</param>
+        /// <param name="addedEntity">The added entity</param>
+        /// <returns>This <see cref="RiqBeatmap"/> object</returns>
+        public RiqBeatmap AddEntity(string datamodel, string type, out RiqEntity addedEntity)
+        {
+            addedEntity = CreateEntity(datamodel, type);
+            return this;
+        }
+
+        /// <summary>
+        /// Set the offset of the beatmap.
+        /// </summary>
+        /// <param name="offset">Offset in seconds</param>
+        /// <returns>This <see cref="RiqBeatmap"/> object</returns>
+        public RiqBeatmap WithOffset(double offset)
+        {
+            this.offset = offset;
+            return this;
+        }
+
+        /// <summary>
+        /// Serialize this <see cref="RiqBeatmap"/> object to a JSON string.
+        /// </summary>
+        /// <returns>JSON string</returns>
         public string Serialize()
         {
             return JsonConvert.SerializeObject(this, Formatting.None, new JsonSerializerSettings
@@ -46,12 +101,6 @@ namespace Jukebox
                 TypeNameHandling = TypeNameHandling.Arrays,
                 ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
             });
-        }
-
-        public RiqBeatmap WithOffset(double offset)
-        {
-            this.offset = offset;
-            return this;
         }
 
 #region Obsolete
@@ -65,7 +114,7 @@ namespace Jukebox
         [System.Obsolete("Use AddEntity instead and manually specify the type.")]
         public RiqEntity AddNewEntity(string datamodel, double beat, float length)
         {
-            RiqEntity e = AddEntity(datamodel);
+            RiqEntity e = CreateEntity(datamodel);
 
             e.CreateProperty("beat", beat);
             e.CreateProperty("length", length);
@@ -91,7 +140,7 @@ namespace Jukebox
         [System.Obsolete("Use AddEntity instead and manually specify the type.")]
         public RiqEntity AddNewTempoChange(double beat, float tempo)
         {
-            RiqEntity e = AddEntity("global/tempo change", "riq__TempoChange");
+            RiqEntity e = CreateEntity("global/tempo change", "riq__TempoChange");
 
             e.CreateProperty("beat", beat);
             e.CreateProperty("tempo", tempo);
@@ -118,7 +167,7 @@ namespace Jukebox
         [System.Obsolete("Use AddEntity instead and manually specify the type.")]
         public RiqEntity AddNewVolumeChange(double beat, float volume)
         {
-            RiqEntity e = AddEntity("global/volume change", "riq__VolumeChange");
+            RiqEntity e = CreateEntity("global/volume change", "riq__VolumeChange");
 
             e.CreateProperty("beat", beat);
             e.CreateProperty("volume", volume);
@@ -143,7 +192,7 @@ namespace Jukebox
         [System.Obsolete("Use AddEntity instead and manually specify the type.")]
         public RiqEntity AddNewSectionMarker(double beat, string markerName)
         {
-            RiqEntity e = AddEntity("global/section marker", "riq__SectionMarker");
+            RiqEntity e = CreateEntity("global/section marker", "riq__SectionMarker");
 
             e.CreateProperty("beat", beat);
             e.CreateProperty("sectionName", markerName);
