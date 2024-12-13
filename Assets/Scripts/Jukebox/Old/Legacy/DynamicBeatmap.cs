@@ -1,3 +1,4 @@
+#if JUKEBOX_V0
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -7,7 +8,6 @@ using Newtonsoft.Json;
 
 namespace Jukebox.Legacy
 {
-#if JUKEBOX_V0
     [Serializable]
     public class DynamicBeatmap
     {
@@ -180,5 +180,5 @@ namespace Jukebox.Legacy
             public bool isCheckpoint;   // really don't think we need this but who knows
         }
     }
-#endif
 }
+#endif

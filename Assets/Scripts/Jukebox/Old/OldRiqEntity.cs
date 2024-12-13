@@ -1,3 +1,4 @@
+#if JUKEBOX_V1
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -6,34 +7,33 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 
-namespace Jukebox
+namespace Jukebox.Legacy
 {
-#if JUKEBOX_V1
-    public class RiqEntityConverter : JsonConverter<RiqEntity>
+    public class OldRiqEntityConverter : JsonConverter<OldRiqEntity>
     {
-        public override void WriteJson(JsonWriter writer, RiqEntity value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, OldRiqEntity value, JsonSerializer serializer)
         {
-            RiqEntityData dat = value.data;
+            OldRiqEntityData dat = value.data;
 
             writer.WriteRawValue(dat.Serialize());
         }
 
-        public override RiqEntity ReadJson(JsonReader reader, Type objectType, RiqEntity existingValue, bool hasExistingValue, JsonSerializer serializer)
+        public override OldRiqEntity ReadJson(JsonReader reader, Type objectType, OldRiqEntity existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             if (reader.TokenType == JsonToken.Null)
                 return null;
             JObject obj = JObject.Load(reader);
-            RiqEntityData dat = obj.ToObject<RiqEntityData>();
-            RiqEntity e = new RiqEntity(dat);
+            OldRiqEntityData dat = obj.ToObject<OldRiqEntityData>();
+            OldRiqEntity e = new OldRiqEntity(dat);
 
             return e;
         }
     }
 
-    [JsonConverter(typeof(RiqEntityConverter))]
-    public class RiqEntity
+    [JsonConverter(typeof(OldRiqEntityConverter))]
+    public class OldRiqEntity
     {
-        public RiqEntityData data;
+        public OldRiqEntityData data;
         public int uid;
         public Guid guid;
 
@@ -50,24 +50,24 @@ namespace Jukebox
 #else
         public Dictionary<string, dynamic> dynamicData { get => data.dynamicData; set => data.dynamicData = value; }
 
-        public RiqEntity(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, dynamic> dynamicData = null)
+        public OldRiqEntity(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, dynamic> dynamicData = null)
         {
 #endif
             this.guid = Guid.NewGuid();
-            this.data = new RiqEntityData(type, version, datamodel, beat, length, dynamicData);
-            this.uid = RiqBeatmap.UidProvider;
+            this.data = new OldRiqEntityData(type, version, datamodel, beat, length, dynamicData);
+            this.uid = OldRiqBeatmap.UidProvider;
         }
 
-        public RiqEntity(RiqEntityData data)
+        public OldRiqEntity(OldRiqEntityData data)
         {
             this.guid = Guid.NewGuid();
             this.data = data;
-            this.uid = RiqBeatmap.UidProvider;
+            this.uid = OldRiqBeatmap.UidProvider;
         }
 
-        public RiqEntity DeepCopy()
+        public OldRiqEntity DeepCopy()
         {
-            RiqEntity copy = new RiqEntity(data.DeepCopy());
+            OldRiqEntity copy = new OldRiqEntity(data.DeepCopy());
             return copy;
         }
 
@@ -139,7 +139,7 @@ namespace Jukebox
     }
 
     [Serializable]
-    public struct RiqEntityData
+    public struct OldRiqEntityData
     {
         public string type;
         public int version;
@@ -153,7 +153,7 @@ namespace Jukebox
         {
 #else
         public Dictionary<string, dynamic> dynamicData;
-        public RiqEntityData(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, dynamic> dynamicData = null)
+        public OldRiqEntityData(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, dynamic> dynamicData = null)
         {
 #endif        
             this.type = type;
@@ -164,9 +164,9 @@ namespace Jukebox
             this.dynamicData = dynamicData ?? new();
         }
 
-        public RiqEntityData DeepCopy()
+        public OldRiqEntityData DeepCopy()
         {
-            RiqEntityData copy = new RiqEntityData();
+            OldRiqEntityData copy = new OldRiqEntityData();
             copy.type = type;
             copy.version = version;
             copy.beat = beat;
@@ -190,5 +190,6 @@ namespace Jukebox
             });
         }
     }
-#endif
 }
+
+#endif

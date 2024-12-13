@@ -5,23 +5,23 @@ using Newtonsoft.Json.Linq;
 
 namespace Jukebox
 {
-    internal class RiqEntity2Converter : JsonConverter<RiqEntity2>
+    internal class RiqEntityConverter : JsonConverter<RiqEntity>
     {
         List<string> datamodels;
         List<string> types;
-        public RiqEntity2Converter SetDatamodelsArray(List<string> datamodels)
+        public RiqEntityConverter SetDatamodelsArray(List<string> datamodels)
         {
             this.datamodels = datamodels;
             return this;
         }
 
-        public RiqEntity2Converter SetTypesArray(List<string> types)
+        public RiqEntityConverter SetTypesArray(List<string> types)
         {
             this.types = types;
             return this;
         }
 
-        public override RiqEntity2 ReadJson(JsonReader reader, Type objectType, RiqEntity2 existingValue, bool hasExistingValue, JsonSerializer serializer)
+        public override RiqEntity ReadJson(JsonReader reader, Type objectType, RiqEntity existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             if (reader.TokenType == JsonToken.Null)
                 return null;
@@ -32,7 +32,7 @@ namespace Jukebox
             int version = obj["version"].Value<int>();
             int datamodelindex = obj["model"].Value<int>();
 
-            RiqEntity2 entity = new(types[typeindex], datamodels[datamodelindex], version);
+            RiqEntity entity = new(types[typeindex], datamodels[datamodelindex], version);
 
             JObject dynamicData = obj["data"].Value<JObject>();
 
@@ -46,7 +46,7 @@ namespace Jukebox
             return entity;
         }
 
-        public override void WriteJson(JsonWriter writer, RiqEntity2 value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, RiqEntity value, JsonSerializer serializer)
         {
             writer.WriteStartObject();
 

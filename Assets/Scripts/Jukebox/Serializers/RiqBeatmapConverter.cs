@@ -5,9 +5,9 @@ using Newtonsoft.Json.Linq;
 
 namespace Jukebox
 {
-    internal class RiqBeatmap2Converter : JsonConverter<RiqBeatmap2>
+    internal class RiqBeatmapConverter : JsonConverter<RiqBeatmap>
     {
-        public override RiqBeatmap2 ReadJson(JsonReader reader, Type objectType, RiqBeatmap2 existingValue, bool hasExistingValue, JsonSerializer serializer)
+        public override RiqBeatmap ReadJson(JsonReader reader, Type objectType, RiqBeatmap existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             if (reader.TokenType == JsonToken.Null)
                 return null;
@@ -17,7 +17,7 @@ namespace Jukebox
             int version = obj["version"].Value<int>();
             double offset = obj["offset"].Value<double>();
 
-            RiqBeatmap2 beatmap = new(version);
+            RiqBeatmap beatmap = new(version);
             beatmap.WithOffset(offset);
 
             List<string> datamodels = new();
@@ -35,21 +35,21 @@ namespace Jukebox
             }
 
             JArray entities = obj["entities"].Value<JArray>();
-            RiqEntity2Converter entityConverter = new();
+            RiqEntityConverter entityConverter = new();
             entityConverter
                 .SetDatamodelsArray(datamodels)
                 .SetTypesArray(types);
 
             foreach (JToken token in entities)
             {
-                RiqEntity2 entity = entityConverter.ReadJson(token.CreateReader(), typeof(RiqEntity2), null, serializer) as RiqEntity2;
+                RiqEntity entity = entityConverter.ReadJson(token.CreateReader(), typeof(RiqEntity), null, serializer) as RiqEntity;
                 beatmap.AddEntity(entity);
             }
 
             return beatmap;
         }
 
-        public override void WriteJson(JsonWriter writer, RiqBeatmap2 value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, RiqBeatmap value, JsonSerializer serializer)
         {
             writer.WriteStartObject();
 
@@ -64,7 +64,7 @@ namespace Jukebox
 
             writer.WritePropertyName("entities");
             writer.WriteStartArray();
-            foreach (RiqEntity2 entity in value.Entities)
+            foreach (RiqEntity entity in value.Entities)
             {
                 string datamodel = entity.DatamodelHash.StringValue;
                 if (!datamodels.Contains(datamodel))

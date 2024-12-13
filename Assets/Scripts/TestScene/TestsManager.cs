@@ -7,8 +7,9 @@ using UnityEngine.UI;
 using TMPro;
 using SFB;
 
-using Jukebox;
-using Newtonsoft.Json;
+#if JUKEBOX_V1
+using Jukebox.Legacy;
+#endif
 
 namespace Jukebox.Tests
 {
@@ -26,10 +27,10 @@ namespace Jukebox.Tests
 
         [SerializeField] RawImage waveformImg;
 
-        RiqBeatmap beatmap;
+        OldRiqBeatmap beatmap;
 
         RiqMetadata metadata2;
-        RiqBeatmap2 beatmap2;
+        RiqBeatmap beatmap2;
 
         float audioLength;
         double scheduledTime;
@@ -40,17 +41,17 @@ namespace Jukebox.Tests
         {
             musicSlider.maxValue = 1f;
             // RiqBeatmap.OnUpdateEntity += UpdateEntityTest;
-            RiqFileHandler2.LockCache();
-
             RiqFileHandler.LockCache();
+
+            OldRiqFileHandler.LockCache();
         }
 
         private void OnApplicationQuit() {
-            RiqFileHandler2.UnlockCache();
-            RiqFileHandler2.ClearCache();
-
             RiqFileHandler.UnlockCache();
             RiqFileHandler.ClearCache();
+
+            OldRiqFileHandler.UnlockCache();
+            OldRiqFileHandler.ClearCache();
         }
 
         private void Update() {
@@ -91,7 +92,7 @@ namespace Jukebox.Tests
 
         IEnumerator LoadMusic()
         {
-            IEnumerator load = RiqFileHandler.LoadSong();
+            IEnumerator load = OldRiqFileHandler.LoadSong();
             while (true)
             {
                 object current = load.Current;
@@ -115,7 +116,7 @@ namespace Jukebox.Tests
                 yield return current;
             }
             Debug.Log("Finished loading music");
-            audioSource.clip = RiqFileHandler.StreamedAudioClip;
+            audioSource.clip = OldRiqFileHandler.StreamedAudioClip;
             audioLength = audioSource.clip.length;
             musicSlider.value = 0;
             songProgressSeconds.text = $"0.000 / {audioLength:0.000}";
@@ -125,7 +126,7 @@ namespace Jukebox.Tests
 
         IEnumerator LoadMusic2(int idx)
         {
-            IEnumerator load = RiqFileHandler2.ReadAudio(idx);
+            IEnumerator load = RiqFileHandler.ReadAudio(idx);
             while (true)
             {
                 object current = load.Current;
@@ -149,7 +150,7 @@ namespace Jukebox.Tests
                 yield return current;
             }
             Debug.Log("Finished loading music");
-            audioSource.clip = RiqFileHandler2.GetLoadedSong();
+            audioSource.clip = RiqFileHandler.GetLoadedSong();
             audioLength = audioSource.clip.length;
             musicSlider.value = 0;
             songProgressSeconds.text = $"0.000 / {audioLength:0.000}";
@@ -217,25 +218,23 @@ namespace Jukebox.Tests
             try
             {
                 if (paths.Length == 0) return;
-                string tmpDir = RiqFileHandler2.Extract(paths[0]);
-                int version = RiqFileHandler2.CheckVersion();
+                string tmpDir = RiqFileHandler.Extract(paths[0]);
+                int version = RiqFileHandler.CheckVersion();
 
                 if (version < 2)
                 {
 #if JUKEBOX_V1
                     // try to convert
-                    RiqFileHandler2.UpgradeOldStructure();
+                    RiqFileHandler.UpgradeOldStructure();
 #else
                     statusTxt.text = "RIQ version is not supported.";
                     return;
 #endif
                 }
 
-                metadata2 = RiqFileHandler2.ReadMetadata();
-                beatmap2 = RiqFileHandler2.ReadChart(0);
+                metadata2 = RiqFileHandler.ReadMetadata();
+                beatmap2 = RiqFileHandler.ReadChart(0);
                 StartCoroutine(LoadMusic2(0));
-
-                // metadata2 = RiqFileHandler2.LoadMetadata(tmpDir);
 
                 statusTxt.text = "Imported RIQ successfully!";
                 return;
@@ -254,10 +253,10 @@ namespace Jukebox.Tests
             if (beatmap2 == null)
             {
                 metadata2 = new RiqMetadata();
-                RiqFileHandler2.WriteMetadata(metadata2);
+                RiqFileHandler.WriteMetadata(metadata2);
 
-                beatmap2 = new RiqBeatmap2();
-                RiqFileHandler2.WriteChart(0, beatmap2);
+                beatmap2 = new RiqBeatmap();
+                RiqFileHandler.WriteChart(0, beatmap2);
             }
         }
 
@@ -265,7 +264,7 @@ namespace Jukebox.Tests
         {
             if (beatmap == null)
             {
-                beatmap = new RiqBeatmap();
+                beatmap = new OldRiqBeatmap();
                 beatmap.data.properties = 
                     new Dictionary<string, object>() {
                         // mapper set properties? (future: use this to flash the button)
@@ -312,7 +311,7 @@ namespace Jukebox.Tests
                         {"resultrepeat_hi", "You followed the example well."},          // "Superb" message for call-and-response games (two-liner)
                         {"resultrepeat_ng", "Next time, follow the example better."},   // "Try Again" message for call-and-response games (two-liner)
                 };
-                RiqFileHandler.WriteRiq(beatmap);
+                OldRiqFileHandler.WriteRiq(beatmap);
             }
         }
 
@@ -330,7 +329,7 @@ namespace Jukebox.Tests
             try
             {
                 if (paths.Length == 0) return;
-                RiqFileHandler2.WriteAudio(0, paths[0]);
+                RiqFileHandler.WriteAudio(0, paths[0]);
                 StartCoroutine(LoadMusic2(0));
                 return;
             }
@@ -345,8 +344,8 @@ namespace Jukebox.Tests
         {
             if (beatmap == null)
             {
-                beatmap = new RiqBeatmap();
-                RiqFileHandler.WriteRiq(beatmap);
+                beatmap = new OldRiqBeatmap();
+                OldRiqFileHandler.WriteRiq(beatmap);
             }
             var extensions = new [] {
                 new ExtensionFilter("Audio File", "ogg", "wav", "mp3", "aiff", "aifc"),
@@ -355,7 +354,7 @@ namespace Jukebox.Tests
             try
             {
                 if (paths.Length == 0) return;
-                RiqFileHandler.WriteSong(paths[0]);
+                OldRiqFileHandler.WriteSong(paths[0]);
                 StartCoroutine(LoadMusic());
                 return;
             }
@@ -371,7 +370,7 @@ namespace Jukebox.Tests
             var path = StandaloneFileBrowser.SaveFilePanel("Save packed RIQ", "", "remix", "riq");
             try
             {
-                RiqFileHandler.PackRiq(path);
+                OldRiqFileHandler.PackRiq(path);
                 statusTxt.text = "Packed RIQ successfully!";
                 return;
             }
@@ -387,8 +386,8 @@ namespace Jukebox.Tests
             var path = StandaloneFileBrowser.SaveFilePanel("Save packed RIQ v2", "", "remix", "riq");
             try
             {
-                RiqFileHandler2.WriteMetadata(metadata2);
-                RiqFileHandler2.Pack(path);
+                RiqFileHandler.WriteMetadata(metadata2);
+                RiqFileHandler.Pack(path);
                 statusTxt.text = "Packed RIQ successfully!";
                 return;
             }

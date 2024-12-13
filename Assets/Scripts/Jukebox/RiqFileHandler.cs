@@ -8,34 +8,13 @@ using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.Networking;
 
+#if JUKEBOX_V1
+using Jukebox.Legacy;
+#endif
+
 namespace Jukebox
 {
-    /*
-        New file structure:
-        / Current
-            / Resources
-                // Holds implementation-specific resources that may-or-may-not be read by the user
-                // user is expected to use this manually
-                / Images
-                / Sounds
-                / Assetbundles
-                . . .
-            / Audio
-                // Holds per-chart BGM streams
-                song0.wav
-                song1.mp3
-                song2.ogg
-                . . .
-            / Charts
-                // holds RIQ chart information
-                chart0.json
-                chart1.json
-                chart2.json
-            .meta
-                // json format metadata
-    */
-
-    public static class RiqFileHandler2
+    public static class RiqFileHandler
     {
         const int VERSION = 2;
 
@@ -62,6 +41,9 @@ namespace Jukebox
         /// </summary>
         /// <param name="path">path to the .riq file</param>
         /// <returns>path to the extracted riq contents</returns>
+        /// <exception cref="ArgumentNullException">Path is null or empty</exception>
+        /// <exception cref="FileNotFoundException">RIQ file does not exist at provided path</exception>
+        /// <exception cref="IOException">RIQ cache is locked</exception>
         public static string Extract(string path)
         {
             if (path == string.Empty || path == null) throw new ArgumentNullException("path", "path cannot be null or empty");
@@ -94,6 +76,7 @@ namespace Jukebox
         /// </summary>
         /// <returns>Version of the RIQ file.</returns>
         /// <exception cref="InvalidOperationException">RIQ file is invalid or is an unsupported legacy format.</exception>
+        /// <exception cref="Exception">Error reading the metadata.</exception>
         public static int CheckVersion()
         {
             if (!File.Exists(metadataDir))
@@ -135,6 +118,7 @@ namespace Jukebox
         /// </summary>
         /// <returns></returns>
         /// <exception cref="InvalidOperationException">RIQ file is invalid.</exception>
+        /// <exception cref="Exception">Error reading the metadata.</exception>
         public static RiqMetadata ReadMetadata()
         {
             if (!File.Exists(metadataDir))
@@ -155,7 +139,14 @@ namespace Jukebox
             }
         }
 
-        public static RiqBeatmap2 ReadChart(int index)
+        /// <summary>
+        /// Reads a chart from the cache.
+        /// Use <see cref="Extract"/> first to extract the contents of a RIQ file. 
+        /// </summary>
+        /// <param name="index">Chart index to read</param>
+        /// <returns>A <see cref="RiqBeatmap"/> object</returns>
+        /// <exception cref="FileNotFoundException">Chart file not found</exception>
+        public static RiqBeatmap ReadChart(int index)
         {
             string chartName = $"chart{index}";
             string chartPath = Path.Combine(chartDir, chartName + ".json");
@@ -167,9 +158,19 @@ namespace Jukebox
             string chartJson = File.ReadAllText(chartPath);
             Debug.Log($"Jukebox loaded chart {chartPath} ({chartJson.Length} bytes)");
 
-            return JsonConvert.DeserializeObject<RiqBeatmap2>(chartJson);
+            return JsonConvert.DeserializeObject<RiqBeatmap>(chartJson);
         }
 
+        /// <summary>
+        /// Coroutine
+        /// Uses <see cref="UnityWebRequestMultimedia"/> to load an audio clip from the cache.
+        /// Use <see cref="Extract"/> first to extract the contents of a RIQ file. 
+        /// </summary>
+        /// <param name="index">Chart index to get the audio clip for</param>
+        /// <returns></returns>
+        /// <exception cref="FileNotFoundException">Audio file not found</exception>
+        /// <exception cref="InvalidDataException">Unknown audio format</exception>
+        /// <exception cref="Exception">Error loading audio</exception>
         public static IEnumerator ReadAudio(int index)
         {
             string songName = $"song{index}";
@@ -209,6 +210,10 @@ namespace Jukebox
             streamedAudioRequest = null;
         }
 
+        /// <summary>
+        /// Gets the audio clip that was loaded by <see cref="ReadAudio"/>.
+        /// </summary>
+        /// <returns>Loaded audio clip</returns>
         public static AudioClip GetLoadedSong()
         {
             return streamedAudioClip;
@@ -216,6 +221,12 @@ namespace Jukebox
         #endregion
 
         #region Write
+        /// <summary>
+        /// Writes chart metadata <see cref="RiqMetadata"/> to the cache.
+        /// </summary>
+        /// <param name="metadata"><see cref="RiqMetadata"/> to write</param>
+        /// <exception cref="ArgumentNullException">Provided metadata is null</exception>
+        /// <exception cref="IOException">RIQ cache is locked</exception>
         public static void WriteMetadata(RiqMetadata metadata)
         {
             if (metadata is null) throw new ArgumentNullException("metadata", "metadata cannot be null");
@@ -228,7 +239,15 @@ namespace Jukebox
             File.WriteAllText(metadataDir, meta);
         }
 
-        public static void WriteChart(int index, RiqBeatmap2 chart)
+        /// <summary>
+        /// Writes a chart <see cref="RiqBeatmap"/> to the cache.
+        /// </summary>
+        /// <param name="index">Index of the chart to write for</param>
+        /// <param name="chart"><see cref="RiqBeatmap"/> to write</param>
+        /// <exception cref="ArgumentNullException">Provided chart is null</exception>
+        /// <exception cref="IOException">RIQ cache is locked</exception>
+        /// <exception cref="InvalidOperationException">Chart index is invalid</exception>
+        public static void WriteChart(int index, RiqBeatmap chart)
         {
             if (chart is null) throw new ArgumentNullException("chart", "chart cannot be null");
             if (IsCacheLocked()) throw new IOException("RIQ cache is locked, cannot write chart");
@@ -239,10 +258,20 @@ namespace Jukebox
 
             string chartName = $"chart{index}";
             string chartPath = Path.Combine(chartDir, chartName + ".json");
-            string chartJson = JsonConvert.SerializeObject(chart);
+            string chartJson = chart.Serialize();
             File.WriteAllText(chartPath, chartJson);
         }
 
+        /// <summary>
+        /// Copies an audio file to the cache.
+        /// </summary>
+        /// <param name="index">Index of the chart to copy an audio file for</param>
+        /// <param name="audioPath">Path to the audio file</param>
+        /// <exception cref="ArgumentNullException">path to the audio file is null or empty</exception>
+        /// <exception cref="FileNotFoundException">audio file does not exist at provided path</exception>
+        /// <exception cref="IOException">RIQ cache is locked</exception>
+        /// <exception cref="InvalidOperationException">chart index is invalid</exception>
+        /// <exception cref="System.IO.InvalidDataException">audio file is of unknown type</exception>
         public static void WriteAudio(int index, string audioPath)
         {
             if (audioPath == string.Empty || audioPath == null) throw new ArgumentNullException("audioPath", "audioPath cannot be null or empty");
@@ -259,8 +288,15 @@ namespace Jukebox
             if (!Directory.Exists(audioDir))
                 Directory.CreateDirectory(audioDir);
 
-            string songName = $"song{index}";
+            DeleteOldAudio(index);
 
+            string songPath = Path.Combine(audioDir, $"song{index}{Path.GetExtension(audioPath)}");
+            File.Copy(audioPath, songPath, true);
+        }
+
+        static void DeleteOldAudio(int index)
+        {
+            string songName = $"song{index}";
             string[] files = Directory.GetFiles(audioDir, songName + ".*");
             if (files.Length != 0)
             {
@@ -269,15 +305,17 @@ namespace Jukebox
                     File.Delete(file);
                 }
             }
-
-            string songPath = Path.Combine(audioDir, songName + Path.GetExtension(audioPath));
-            File.Copy(audioPath, songPath, true);
         }
 
+        /// <summary>
+        /// Packs the contents of the temporary cache into a .riq file.
+        /// </summary>
+        /// <param name="destPath">Path to save the .riq file</param>
+        /// <param name="backup">If destination file exists, make a backup</param>
         public static void Pack(string destPath, bool backup = true)
         {
 #if JUKEBOX_V1
-            // delete old json and song files, they should be in their new locations by now
+            // if not already done, delete old json and song files, they should be in their new locations by now
             string oldJsonPath = Path.Combine(treeDir, "remix.json");
             if (File.Exists(oldJsonPath))
             {
@@ -338,7 +376,7 @@ namespace Jukebox
         /// checks if the temporary cache has a lock set
         /// use to safeguard against multiple processes accessing the cache at once
         /// </summary>
-        /// <returns>is the cache locked? or false if the cache doesn't exist</returns>
+        /// <returns>is the cache locked? always false if the cache doesn't exist</returns>
         public static bool IsCacheLocked()
         {
             if (!Directory.Exists(tempDir)) return false;
@@ -349,8 +387,8 @@ namespace Jukebox
 
         /// <summary>
         /// locks the riq cache
-        /// only needs to be called on app boot
-        /// don't call if locking is not necessary
+        /// only needs to be called once on startup
+        /// do not call if locking is not necessary
         /// </summary>
         public static void LockCache()
         {
@@ -369,7 +407,7 @@ namespace Jukebox
 
         /// <summary>
         /// unlocks the riq cache
-        /// only needs to be called on app exit
+        /// only needs to be called once on shutdown
         /// </summary>
         public static void UnlockCache()
         {
@@ -386,6 +424,7 @@ namespace Jukebox
         #region Old File Conversion
 #if JUKEBOX_V1
         /// <summary>
+        /// Upgrades the cache structure of a v1 RIQ to the new structure
         /// Assumes a v1 RIQ was extracted to the temporary cache.
         /// </summary>
         public static void UpgradeOldStructure()
@@ -398,7 +437,7 @@ namespace Jukebox
 
             if (!File.Exists(oldBeatmapPath)) throw new FileNotFoundException("old style remix.json not found in RIQ file (may not be a v1 riq?)");
 
-            RiqBeatmap oldBeatmap = RiqFileHandler.ReadRiq();
+            OldRiqBeatmap oldBeatmap = OldRiqFileHandler.ReadRiq();
 
             RiqMetadata metadata = new(VERSION, oldBeatmap.data.riqOrigin);
             foreach (KeyValuePair<string, object> kvp in oldBeatmap.data.properties)
@@ -407,26 +446,26 @@ namespace Jukebox
                 metadata.CreateEntry(key.StringValue, kvp.Value);
             }
 
-            RiqBeatmap2 beatmap = new(VERSION);
+            RiqBeatmap beatmap = new(VERSION);
             beatmap.WithOffset(oldBeatmap.data.offset);
-            foreach (RiqEntity oldEntity in oldBeatmap.data.entities)
+            foreach (OldRiqEntity oldEntity in oldBeatmap.data.entities)
             {
-                RiqEntity2 entity = ConvertOldEntity(oldEntity);
+                RiqEntity entity = ConvertOldEntity(oldEntity);
                 beatmap.AddEntity(entity);
             }
-            foreach (RiqEntity oldTempoChange in oldBeatmap.data.tempoChanges)
+            foreach (OldRiqEntity oldTempoChange in oldBeatmap.data.tempoChanges)
             {
-                RiqEntity2 entity = ConvertOldEntity(oldTempoChange);
+                RiqEntity entity = ConvertOldEntity(oldTempoChange);
                 beatmap.AddEntity(entity);
             }
-            foreach (RiqEntity oldVolumeChange in oldBeatmap.data.volumeChanges)
+            foreach (OldRiqEntity oldVolumeChange in oldBeatmap.data.volumeChanges)
             {
-                RiqEntity2 entity = ConvertOldEntity(oldVolumeChange);
+                RiqEntity entity = ConvertOldEntity(oldVolumeChange);
                 beatmap.AddEntity(entity);
             }
-            foreach (RiqEntity oldSectionMarker in oldBeatmap.data.beatmapSections)
+            foreach (OldRiqEntity oldSectionMarker in oldBeatmap.data.beatmapSections)
             {
-                RiqEntity2 entity = ConvertOldEntity(oldSectionMarker);
+                RiqEntity entity = ConvertOldEntity(oldSectionMarker);
                 beatmap.AddEntity(entity);
             }
 
@@ -442,9 +481,9 @@ namespace Jukebox
             File.Delete(oldBeatmapPath);
         }
 
-        static RiqEntity2 ConvertOldEntity(RiqEntity oldEntity)
+        static RiqEntity ConvertOldEntity(OldRiqEntity oldEntity)
         {
-            RiqEntity2 entity = new(oldEntity.data.type, oldEntity.datamodel, oldEntity.version);
+            RiqEntity entity = new(oldEntity.data.type, oldEntity.datamodel, oldEntity.version);
 
             //manually add beat and length
             entity.CreateProperty("beat", oldEntity.beat);

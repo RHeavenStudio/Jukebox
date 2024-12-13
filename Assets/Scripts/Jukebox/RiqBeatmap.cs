@@ -3,11 +3,11 @@ using Newtonsoft.Json;
 
 namespace Jukebox
 {
-    [JsonConverter(typeof(RiqBeatmap2Converter))]
-    public class RiqBeatmap2
+    [JsonConverter(typeof(RiqBeatmapConverter))]
+    public class RiqBeatmap
     {
-        readonly List<RiqEntity2> entities = new();
-        public List<RiqEntity2> Entities { get => entities; }
+        readonly List<RiqEntity> entities = new();
+        public List<RiqEntity> Entities { get => entities; }
 
         public int Version { get => version; }
         public double Offset { get => offset; }
@@ -15,25 +15,25 @@ namespace Jukebox
         double offset;
         int version;
 
-        public RiqBeatmap2(int version = 2)
+        public RiqBeatmap(int version = 2)
         {
             this.version = version;
         }
 
-        public List<RiqEntity2> FindEntitiesByType(string type)
+        public List<RiqEntity> FindEntitiesByType(string type)
         {
             return entities.FindAll(e => e.Type == type);
         }
 
-        public RiqEntity2 AddEntity(RiqEntity2 entity)
+        public RiqEntity AddEntity(RiqEntity entity)
         {
             entities.Add(entity);
             return entity;
         }
 
-        public RiqEntity2 AddEntity(string datamodel, string type = "riq__Entity")
+        public RiqEntity AddEntity(string datamodel, string type = "riq__Entity")
         {
-            RiqEntity2 entity = new(type, datamodel, version);
+            RiqEntity entity = new(type, datamodel, version);
             entities.Add(entity);
             return entity;
         }
@@ -48,7 +48,7 @@ namespace Jukebox
             });
         }
 
-        public RiqBeatmap2 WithOffset(double offset)
+        public RiqBeatmap WithOffset(double offset)
         {
             this.offset = offset;
             return this;
@@ -56,16 +56,16 @@ namespace Jukebox
 
 #region Obsolete
         [System.Obsolete("Use FindEntitiesByType instead.")]
-        public List<RiqEntity2> TempoChanges { get => FindEntitiesByType("riq__TempoChange"); }
+        public List<RiqEntity> TempoChanges { get => FindEntitiesByType("riq__TempoChange"); }
         [System.Obsolete("Use FindEntitiesByType instead.")]
-        public List<RiqEntity2> VolumeChanges { get => FindEntitiesByType("riq__VolumeChange"); }
+        public List<RiqEntity> VolumeChanges { get => FindEntitiesByType("riq__VolumeChange"); }
         [System.Obsolete("Use FindEntitiesByType instead.")]
-        public List<RiqEntity2> SectionMarkers { get => FindEntitiesByType("riq__SectionMarker"); }
+        public List<RiqEntity> SectionMarkers { get => FindEntitiesByType("riq__SectionMarker"); }
 
         [System.Obsolete("Use AddEntity instead and manually specify the type.")]
-        public RiqEntity2 AddNewEntity(string datamodel, double beat, float length)
+        public RiqEntity AddNewEntity(string datamodel, double beat, float length)
         {
-            RiqEntity2 e = AddEntity(datamodel);
+            RiqEntity e = AddEntity(datamodel);
 
             e.CreateProperty("beat", beat);
             e.CreateProperty("length", length);
@@ -76,9 +76,9 @@ namespace Jukebox
         }
 
         [System.Obsolete("Use AddEntity instead and manually specify the type.")]
-        public RiqEntity2 AddNewEntity(string datamodel, double beat, float length, Dictionary<string, object> dynamicData)
+        public RiqEntity AddNewEntity(string datamodel, double beat, float length, Dictionary<string, object> dynamicData)
         {
-            RiqEntity2 e = AddNewEntity(datamodel, beat, length);
+            RiqEntity e = AddNewEntity(datamodel, beat, length);
 
             foreach (KeyValuePair<string, object> kvp in dynamicData)
             {
@@ -89,9 +89,9 @@ namespace Jukebox
         }
 
         [System.Obsolete("Use AddEntity instead and manually specify the type.")]
-        public RiqEntity2 AddNewTempoChange(double beat, float tempo)
+        public RiqEntity AddNewTempoChange(double beat, float tempo)
         {
-            RiqEntity2 e = AddEntity("global/tempo change", "riq__TempoChange");
+            RiqEntity e = AddEntity("global/tempo change", "riq__TempoChange");
 
             e.CreateProperty("beat", beat);
             e.CreateProperty("tempo", tempo);
@@ -103,9 +103,9 @@ namespace Jukebox
         }
 
         [System.Obsolete("Use AddEntity instead and manually specify the type.")]
-        public RiqEntity2 AddNewTempoChange(double beat, float tempo, Dictionary<string, object> dynamicData)
+        public RiqEntity AddNewTempoChange(double beat, float tempo, Dictionary<string, object> dynamicData)
         {
-            RiqEntity2 e = AddNewTempoChange(beat, tempo);
+            RiqEntity e = AddNewTempoChange(beat, tempo);
 
             foreach (KeyValuePair<string, object> kvp in dynamicData)
             {
@@ -116,9 +116,9 @@ namespace Jukebox
         }
 
         [System.Obsolete("Use AddEntity instead and manually specify the type.")]
-        public RiqEntity2 AddNewVolumeChange(double beat, float volume)
+        public RiqEntity AddNewVolumeChange(double beat, float volume)
         {
-            RiqEntity2 e = AddEntity("global/volume change", "riq__VolumeChange");
+            RiqEntity e = AddEntity("global/volume change", "riq__VolumeChange");
 
             e.CreateProperty("beat", beat);
             e.CreateProperty("volume", volume);
@@ -128,9 +128,9 @@ namespace Jukebox
         }
 
         [System.Obsolete("Use AddEntity instead and manually specify the type.")]
-        public RiqEntity2 AddNewVolumeChange(double beat, float volume, Dictionary<string, object> dynamicData)
+        public RiqEntity AddNewVolumeChange(double beat, float volume, Dictionary<string, object> dynamicData)
         {
-            RiqEntity2 e = AddNewVolumeChange(beat, volume);
+            RiqEntity e = AddNewVolumeChange(beat, volume);
 
             foreach (KeyValuePair<string, object> kvp in dynamicData)
             {
@@ -141,9 +141,9 @@ namespace Jukebox
         }
 
         [System.Obsolete("Use AddEntity instead and manually specify the type.")]
-        public RiqEntity2 AddNewSectionMarker(double beat, string markerName)
+        public RiqEntity AddNewSectionMarker(double beat, string markerName)
         {
-            RiqEntity2 e = AddEntity("global/section marker", "riq__SectionMarker");
+            RiqEntity e = AddEntity("global/section marker", "riq__SectionMarker");
 
             e.CreateProperty("beat", beat);
             e.CreateProperty("sectionName", markerName);
@@ -153,9 +153,9 @@ namespace Jukebox
         }
 
         [System.Obsolete("Use AddEntity instead and manually specify the type.")]
-        public RiqEntity2 AddNewSectionMarker(double beat, string markerName, Dictionary<string, object> dynamicData)
+        public RiqEntity AddNewSectionMarker(double beat, string markerName, Dictionary<string, object> dynamicData)
         {
-            RiqEntity2 e = AddNewSectionMarker(beat, markerName);
+            RiqEntity e = AddNewSectionMarker(beat, markerName);
 
             foreach (KeyValuePair<string, object> kvp in dynamicData)
             {

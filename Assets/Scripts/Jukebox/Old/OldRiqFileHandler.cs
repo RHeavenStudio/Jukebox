@@ -1,3 +1,4 @@
+#if JUKEBOX_V1
 using System;
 using System.IO;
 using System.IO.Compression;
@@ -6,15 +7,14 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace Jukebox
+namespace Jukebox.Legacy
 {
-#if JUKEBOX_V1
     /// <summary>
     /// Handles file I/O with riq files
     /// Methods here can be changed to suit the use case of the game
     /// (for example, you may want to load chart contents directly into memory instead of using a file cache)
     /// </summary>
-    public static class RiqFileHandler
+    public static class OldRiqFileHandler
     {
         public delegate string AudioConverterHandler(string filePath, AudioType audioType, string specificType);
         public static AudioConverterHandler AudioConverter;
@@ -100,14 +100,14 @@ namespace Jukebox
         /// </summary>
         /// <param name="path">directory to extracted riq JSON</param>
         /// <returns>an instance of RiqBeatmap</returns>
-        public static RiqBeatmap ReadRiq()
+        public static OldRiqBeatmap ReadRiq()
         {
             if (treeDir == string.Empty || treeDir == null) throw new System.ArgumentNullException("path", "path cannot be null or empty");
 
             string jsonPath = Path.Combine(treeDir, "remix.json");
             if (!File.Exists(jsonPath)) throw new System.IO.FileNotFoundException("path", $"riq chart file does not exist at path {jsonPath}, was an RIQ file properly extracted?");
             string json = File.ReadAllText(jsonPath);
-            RiqBeatmap beatmap = new RiqBeatmap(json);
+            OldRiqBeatmap beatmap = new OldRiqBeatmap(json);
 
             return beatmap;
         }
@@ -237,7 +237,7 @@ namespace Jukebox
         /// writes a beatmap to the "remix.json" file in the temporary cache
         /// </summary>
         /// <param name="beatmap">RiqBeatmap to serialize</param>
-        public static void WriteRiq(RiqBeatmap beatmap)
+        public static void WriteRiq(OldRiqBeatmap beatmap)
         {
             if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot write RIQ file");
             if (!Directory.Exists(treeDir))
@@ -433,5 +433,6 @@ namespace Jukebox
             }
         }
     }
-#endif
 }
+
+#endif

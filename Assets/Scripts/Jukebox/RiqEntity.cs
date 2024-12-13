@@ -1,15 +1,11 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using Newtonsoft.Json;
-
-using UnityEngine;
 
 namespace Jukebox
 {
-    [JsonConverter(typeof(RiqEntity2Converter))]
-    public class RiqEntity2
+    [JsonConverter(typeof(RiqEntityConverter))]
+    public class RiqEntity
     {
         public RiqHashedKey DatamodelHash { get; private set; }
         public string Type { get; private set; }
@@ -75,15 +71,16 @@ namespace Jukebox
             }
         }
 
-        public RiqEntity2(string type, string datamodel, int version)
+        public RiqEntity(string type, string datamodel, int version)
         {
             this.Type = type;
             this.DatamodelHash = RiqHashedKey.CreateFrom(datamodel);
             this.Version = version;
+
             this.Guid = Guid.NewGuid();
         }
 
-        public RiqEntity2(string type, RiqHashedKey datamodel, int version)
+        public RiqEntity(string type, RiqHashedKey datamodel, int version)
         {
             this.Type = type;
             this.DatamodelHash = datamodel;
@@ -92,12 +89,13 @@ namespace Jukebox
             this.Guid = Guid.NewGuid();
         }
 
-        public RiqEntity2 DeepCopy()
+        public RiqEntity DeepCopy()
         {
-            RiqEntity2 copy = new RiqEntity2(Type, DatamodelHash, Version);
-            foreach (KeyValuePair<int, object> kvp in dynamicData)
+            RiqEntity copy = new RiqEntity(Type, DatamodelHash, Version);
+            copy.dynamicData.Clear();
+            foreach (RiqHashedKey key in keys)
             {
-                copy.dynamicData.Add(kvp.Key, kvp.Value);
+                copy.CreateProperty(key, dynamicData[key.Hash]);
             }
             return copy;
         }
@@ -105,6 +103,11 @@ namespace Jukebox
         public RiqHashedKey CreateProperty(string name, object defaultValue)
         {
             RiqHashedKey key = RiqHashedKey.CreateFrom(name);
+            return CreateProperty(key, defaultValue);
+        }
+
+        public RiqHashedKey CreateProperty(RiqHashedKey key, object defaultValue)
+        {
             if (!keys.Contains(key))
             {
                 keys.Add(key);
@@ -114,8 +117,20 @@ namespace Jukebox
             {
                 dynamicData[key.Hash] = defaultValue;
             }
-            UnityEngine.Debug.Log($"Created property {name} (hash: {key.Hash})");
+            UnityEngine.Debug.Log($"Created property {key.StringValue} (hash: {key.Hash})");
             return key;
+        }
+
+        public RiqEntity AddProperty(string name, object defaultValue, out RiqHashedKey key)
+        {
+            key = CreateProperty(name, defaultValue);
+            return this;
+        }
+
+        public RiqEntity AddProperty(RiqHashedKey key, object defaultValue, out RiqHashedKey keyOut)
+        {
+            keyOut = CreateProperty(key, defaultValue);
+            return this;
         }
     }
 }

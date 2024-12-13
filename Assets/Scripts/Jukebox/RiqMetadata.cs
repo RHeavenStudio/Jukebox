@@ -24,9 +24,14 @@ namespace Jukebox
         public RiqHashedKey CreateEntry(string key, object value)
         {
             RiqHashedKey hashedKey = RiqHashedKey.CreateFrom(key);
-            keys.Add(hashedKey);
-            metadata.Add(hashedKey.Hash, value);
-            return hashedKey;
+            return CreateEntry(hashedKey, value);
+        }
+
+        public RiqHashedKey CreateEntry(RiqHashedKey key, object value)
+        {
+            keys.Add(key);
+            metadata.Add(key.Hash, value);
+            return key;
         }
 
         public object GetEntry(string key)

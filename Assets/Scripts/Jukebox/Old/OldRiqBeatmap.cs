@@ -1,3 +1,4 @@
+#if JUKEBOX_V1
 using System;
 using System.ComponentModel;
 using System.Collections.Generic;
@@ -6,13 +7,12 @@ using UnityEngine;
 using Newtonsoft.Json;
 using Jukebox.Legacy;
 
-namespace Jukebox
+namespace Jukebox.Legacy
 {
-#if JUKEBOX_V1
-    public class RiqBeatmap
+    public class OldRiqBeatmap
     {
-        public delegate RiqBeatmapData? BeatmapUpdateHandler(string version, RiqBeatmapData data);
-        public delegate RiqEntity EntityUpdateHandler(string datamodel, RiqEntity entity);
+        public delegate OldRiqBeatmapData? BeatmapUpdateHandler(string version, OldRiqBeatmapData data);
+        public delegate OldRiqEntity EntityUpdateHandler(string datamodel, OldRiqEntity entity);
 
         /// <summary>
         /// Use this event to update the main beatmap data
@@ -27,12 +27,12 @@ namespace Jukebox
         /// </summary>
         public static event EntityUpdateHandler OnUpdateEntity;
 
-        public RiqBeatmapData data;
+        public OldRiqBeatmapData data;
 
-        public List<RiqEntity> Entities => data.entities;
-        public List<RiqEntity> TempoChanges => data.tempoChanges;
-        public List<RiqEntity> VolumeChanges => data.volumeChanges;
-        public List<RiqEntity> SectionMarkers => data.beatmapSections;
+        public List<OldRiqEntity> Entities => data.entities;
+        public List<OldRiqEntity> TempoChanges => data.tempoChanges;
+        public List<OldRiqEntity> VolumeChanges => data.volumeChanges;
+        public List<OldRiqEntity> SectionMarkers => data.beatmapSections;
 
         static int nextId = 0;
         public static int UidProvider => ++nextId;
@@ -59,9 +59,9 @@ namespace Jukebox
             }
         }
 
-        public RiqBeatmap(string version = "1", string origin = "HeavenStudio")
+        public OldRiqBeatmap(string version = "1", string origin = "HeavenStudio")
         {
-            data = new RiqBeatmapData();
+            data = new OldRiqBeatmapData();
             data.riqVersion = version;
             data.riqOrigin = origin;
             data.properties = new();
@@ -73,7 +73,7 @@ namespace Jukebox
             ResetUidProvider();
         }
 
-        public RiqBeatmap(string json)
+        public OldRiqBeatmap(string json)
         {
             if (json == string.Empty || json == null) throw new ArgumentNullException("json", "json cannot be null or empty");
             ResetUidProvider();
@@ -135,7 +135,7 @@ namespace Jukebox
             switch (riqVersion.riqVersion)
             {
                 case "1":
-                    data = JsonConvert.DeserializeObject<RiqBeatmapData>(json, new JsonSerializerSettings()
+                    data = JsonConvert.DeserializeObject<OldRiqBeatmapData>(json, new JsonSerializerSettings()
                     {
                         TypeNameHandling = TypeNameHandling.None,
                         NullValueHandling = NullValueHandling.Include,
@@ -143,7 +143,7 @@ namespace Jukebox
                     });
                     break;
                 default:
-                    data = JsonConvert.DeserializeObject<RiqBeatmapData>(json, new JsonSerializerSettings()
+                    data = JsonConvert.DeserializeObject<OldRiqBeatmapData>(json, new JsonSerializerSettings()
                     {
                         TypeNameHandling = TypeNameHandling.None,
                         NullValueHandling = NullValueHandling.Include,
@@ -159,20 +159,20 @@ namespace Jukebox
             // lets user code update the chart
             // return null if no changes should be done
             Debug.Log("Running beatmap update handlers");
-            RiqBeatmapData? dat = OnUpdateBeatmap?.Invoke(data.riqVersion, data);
+            OldRiqBeatmapData? dat = OnUpdateBeatmap?.Invoke(data.riqVersion, data);
             if (dat != null)
             {
-                data = (RiqBeatmapData)dat;
+                data = (OldRiqBeatmapData)dat;
                 forceUpdate = true;
             }
 
             Debug.Log("Running entity update handlers");
             for (int i = 0; i < data.entities.Count; i++)
             {
-                RiqEntity temp = OnUpdateEntity?.Invoke(data.entities[i].datamodel, data.entities[i]);
+                OldRiqEntity temp = OnUpdateEntity?.Invoke(data.entities[i].datamodel, data.entities[i]);
                 if (temp != null)
                 {
-                    RiqEntity e = (RiqEntity)temp;
+                    OldRiqEntity e = (OldRiqEntity)temp;
                     if (e.beat == double.NaN)
                     {
                         data.entities.RemoveAt(i);
@@ -188,10 +188,10 @@ namespace Jukebox
 
             for (int i = 0; i < data.tempoChanges.Count; i++)
             {
-                RiqEntity temp = OnUpdateEntity?.Invoke(data.tempoChanges[i].datamodel, data.tempoChanges[i]);
+                OldRiqEntity temp = OnUpdateEntity?.Invoke(data.tempoChanges[i].datamodel, data.tempoChanges[i]);
                 if (temp != null)
                 {
-                    RiqEntity e = (RiqEntity)temp;
+                    OldRiqEntity e = (OldRiqEntity)temp;
                     if (e.beat == double.NaN)
                     {
                         data.tempoChanges.RemoveAt(i);
@@ -207,10 +207,10 @@ namespace Jukebox
 
             for (int i = 0; i < data.volumeChanges.Count; i++)
             {
-                RiqEntity temp = OnUpdateEntity?.Invoke(data.volumeChanges[i].datamodel, data.volumeChanges[i]);
+                OldRiqEntity temp = OnUpdateEntity?.Invoke(data.volumeChanges[i].datamodel, data.volumeChanges[i]);
                 if (temp != null)
                 {
-                    RiqEntity e = (RiqEntity)temp;
+                    OldRiqEntity e = (OldRiqEntity)temp;
                     if (e.beat == double.NaN)
                     {
                         data.volumeChanges.RemoveAt(i);
@@ -226,10 +226,10 @@ namespace Jukebox
 
             for (int i = 0; i < data.beatmapSections.Count; i++)
             {
-                RiqEntity temp = OnUpdateEntity?.Invoke(data.beatmapSections[i].datamodel, data.beatmapSections[i]);
+                OldRiqEntity temp = OnUpdateEntity?.Invoke(data.beatmapSections[i].datamodel, data.beatmapSections[i]);
                 if (temp != null)
                 {
-                    RiqEntity e = (RiqEntity)temp;
+                    OldRiqEntity e = (OldRiqEntity)temp;
                     if (e.beat == double.NaN)
                     {
                         data.beatmapSections.RemoveAt(i);
@@ -245,13 +245,13 @@ namespace Jukebox
 
             if (forceUpdate)
             {
-                if (RiqFileHandler.IsCacheLocked())
+                if (OldRiqFileHandler.IsCacheLocked())
                 {
                     Debug.LogWarning("Chart updated from legacy format, but couldn't force update file. Is cache locked?");
                 }
                 else
                 {
-                    RiqFileHandler.WriteRiq(this);
+                    OldRiqFileHandler.WriteRiq(this);
                 }
             }
         }
@@ -266,18 +266,18 @@ namespace Jukebox
             });
         }
 
-        public RiqEntity AddNewEntity(string datamodel, double beat, float length)
+        public OldRiqEntity AddNewEntity(string datamodel, double beat, float length)
         {
-            RiqEntity e = new RiqEntity("riq__Entity", 0, datamodel, beat, length, null);
+            OldRiqEntity e = new OldRiqEntity("riq__Entity", 0, datamodel, beat, length, null);
 
             e.CreateProperty("track", 0);
             data.entities.Add(e);
             return e;
         }
 
-        public RiqEntity AddNewEntity(string datamodel, double beat, float length, Dictionary<string, object> dynamicData)
+        public OldRiqEntity AddNewEntity(string datamodel, double beat, float length, Dictionary<string, object> dynamicData)
         {
-            RiqEntity e = new RiqEntity("riq__Entity", 0, datamodel, beat, length, dynamicData);
+            OldRiqEntity e = new OldRiqEntity("riq__Entity", 0, datamodel, beat, length, dynamicData);
 
             foreach (var kvp in dynamicData)
             {
@@ -288,9 +288,9 @@ namespace Jukebox
             return e;
         }
 
-        public RiqEntity AddNewTempoChange(double beat, float tempo)
+        public OldRiqEntity AddNewTempoChange(double beat, float tempo)
         {
-            RiqEntity e = new RiqEntity("riq__TempoChange", 0, "global/tempo change", beat, 0f, null);
+            OldRiqEntity e = new OldRiqEntity("riq__TempoChange", 0, "global/tempo change", beat, 0f, null);
 
             e.CreateProperty("tempo", tempo);
             e.CreateProperty("swing", 0f);
@@ -300,9 +300,9 @@ namespace Jukebox
             return e;
         }
 
-        public RiqEntity AddNewTempoChange(double beat, float tempo, Dictionary<string, object> dynamicData)
+        public OldRiqEntity AddNewTempoChange(double beat, float tempo, Dictionary<string, object> dynamicData)
         {
-            RiqEntity e = new RiqEntity("riq__TempoChange", 0, "global/tempo change", beat, 0f, dynamicData);
+            OldRiqEntity e = new OldRiqEntity("riq__TempoChange", 0, "global/tempo change", beat, 0f, dynamicData);
 
             foreach (var kvp in dynamicData)
             {
@@ -313,20 +313,20 @@ namespace Jukebox
             return e;
         }
 
-        public RiqEntity AddNewVolumeChange(double beat, float volume)
+        public OldRiqEntity AddNewVolumeChange(double beat, float volume)
         {
-            RiqEntity e = new RiqEntity("riq__VolumeChange", 0, "global/volume change", beat, 0f, null);
+            OldRiqEntity e = new OldRiqEntity("riq__VolumeChange", 0, "global/volume change", beat, 0f, null);
 
             e.CreateProperty("volume", volume);
-            e.CreateProperty("fade", EasingFunction.Ease.Instant);
+            e.CreateProperty("fade", 1);
 
             data.volumeChanges.Add(e);
             return e;
         }
 
-        public RiqEntity AddNewVolumeChange(double beat, float volume, Dictionary<string, object> dynamicData)
+        public OldRiqEntity AddNewVolumeChange(double beat, float volume, Dictionary<string, object> dynamicData)
         {
-            RiqEntity e = new RiqEntity("riq__VolumeChange", 0, "global/volume change", beat, 0f, dynamicData);
+            OldRiqEntity e = new OldRiqEntity("riq__VolumeChange", 0, "global/volume change", beat, 0f, dynamicData);
 
             foreach (var kvp in dynamicData)
             {
@@ -337,9 +337,9 @@ namespace Jukebox
             return e;
         }
 
-        public RiqEntity AddNewSectionMarker(double beat, string markerName)
+        public OldRiqEntity AddNewSectionMarker(double beat, string markerName)
         {
-            RiqEntity e = new RiqEntity("riq__SectionMarker", 0, "global/section marker", beat, 0f, null);
+            OldRiqEntity e = new OldRiqEntity("riq__SectionMarker", 0, "global/section marker", beat, 0f, null);
 
             e.CreateProperty("sectionName", markerName);
 
@@ -347,9 +347,9 @@ namespace Jukebox
             return e;
         }
 
-        public RiqEntity AddNewSectionMarker(double beat, string markerName, Dictionary<string, object> dynamicData)
+        public OldRiqEntity AddNewSectionMarker(double beat, string markerName, Dictionary<string, object> dynamicData)
         {
-            RiqEntity e = new RiqEntity("riq__SectionMarker", 0, "global/section marker", beat, 0f, dynamicData);
+            OldRiqEntity e = new OldRiqEntity("riq__SectionMarker", 0, "global/section marker", beat, 0f, dynamicData);
 
             foreach (var kvp in dynamicData)
             {
@@ -427,7 +427,7 @@ namespace Jukebox
             // initialVolume.length = 0;
 
             initialVolume.CreateProperty("volume", riq.musicVolume);
-            initialVolume.CreateProperty("fade", EasingFunction.Ease.Instant);
+            initialVolume.CreateProperty("fade", 1);
 
             data.volumeChanges.Add(initialVolume);
 
@@ -441,7 +441,7 @@ namespace Jukebox
                 // e.length = volume.length;
 
                 e.CreateProperty("volume", volume.volume);
-                e.CreateProperty("fade", EasingFunction.Ease.Instant);
+                e.CreateProperty("fade", 1);
 
                 data.volumeChanges.Add(e);
             }
@@ -464,17 +464,17 @@ namespace Jukebox
     }
 
     [Serializable]
-    public struct RiqBeatmapData
+    public struct OldRiqBeatmapData
     {
         [DefaultValue("1")] public string riqVersion;
         public string riqOrigin;
         public double offset;
 
         public Dictionary<string, object> properties;
-        public List<RiqEntity> entities;
-        public List<RiqEntity> tempoChanges;
-        public List<RiqEntity> volumeChanges;
-        public List<RiqEntity> beatmapSections;
+        public List<OldRiqEntity> entities;
+        public List<OldRiqEntity> tempoChanges;
+        public List<OldRiqEntity> volumeChanges;
+        public List<OldRiqEntity> beatmapSections;
     }
-#endif
 }
+#endif
