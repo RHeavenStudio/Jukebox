@@ -1,6 +1,6 @@
 namespace Jukebox
 {
-    public struct RiqHashedKey
+    public class RiqHashedKey
     {
         public string StringValue { get; private set; }
         public int Hash { get; private set; }
