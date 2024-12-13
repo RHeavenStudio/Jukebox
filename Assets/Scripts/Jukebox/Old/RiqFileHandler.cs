@@ -96,14 +96,6 @@ namespace Jukebox
         }
 
         /// <summary>
-        /// Upgrades the structure of the cache to a v2+ riq structure
-        /// </summary>
-        public static void UpgradeStructure()
-        {
-
-        }
-
-        /// <summary>
         /// reads a .riq json file into a RiqBeatmap object
         /// </summary>
         /// <param name="path">directory to extracted riq JSON</param>

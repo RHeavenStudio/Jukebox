@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -20,8 +21,20 @@ namespace Jukebox
 
             if (obj.ContainsKey("origin"))
                 origin = obj["origin"].Value<string>();
+            
+            RiqMetadata metadata = new(version, origin);
 
-            return new RiqMetadata(version, origin);
+            if (!obj.ContainsKey("data"))
+                return metadata;
+
+            JObject metadataObj = obj["data"].Value<JObject>();
+            foreach (KeyValuePair<string, JToken> kvp in metadataObj)
+            {
+                RiqHashedKey key = RiqHashedKey.CreateFrom(kvp.Key);
+                metadata.CreateEntry(key.StringValue, kvp.Value.Value<object>());
+            }
+
+            return metadata;
         }
 
         public override void WriteJson(JsonWriter writer, RiqMetadata value, JsonSerializer serializer)
@@ -33,6 +46,15 @@ namespace Jukebox
 
             writer.WritePropertyName("origin");
             writer.WriteValue(value.Origin);
+
+            writer.WritePropertyName("data");
+            writer.WriteStartObject();
+            foreach (RiqHashedKey key in value.Keys)
+            {
+                writer.WritePropertyName(key.StringValue);
+                serializer.Serialize(writer, value.GetEntry(key.Hash));
+            }
+            writer.WriteEndObject();
 
             writer.WriteEndObject();
         }

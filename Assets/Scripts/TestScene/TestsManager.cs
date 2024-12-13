@@ -222,14 +222,18 @@ namespace Jukebox.Tests
 
                 if (version < 2)
                 {
+#if JUKEBOX_V1
                     // try to convert
+                    RiqFileHandler2.UpgradeOldStructure();
+#else
+                    statusTxt.text = "RIQ version is not supported.";
+                    return;
+#endif
                 }
-                else
-                {
-                    metadata2 = RiqFileHandler2.ReadMetadata();
-                    beatmap2 = RiqFileHandler2.ReadChart(0);
-                    StartCoroutine(LoadMusic2(0));
-                }
+
+                metadata2 = RiqFileHandler2.ReadMetadata();
+                beatmap2 = RiqFileHandler2.ReadChart(0);
+                StartCoroutine(LoadMusic2(0));
 
                 // metadata2 = RiqFileHandler2.LoadMetadata(tmpDir);
 

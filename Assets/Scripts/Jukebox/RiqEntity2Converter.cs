@@ -7,20 +7,34 @@ namespace Jukebox
 {
     internal class RiqEntity2Converter : JsonConverter<RiqEntity2>
     {
+        List<string> datamodels;
+        List<string> types;
+        public RiqEntity2Converter SetDatamodelsArray(List<string> datamodels)
+        {
+            this.datamodels = datamodels;
+            return this;
+        }
+
+        public RiqEntity2Converter SetTypesArray(List<string> types)
+        {
+            this.types = types;
+            return this;
+        }
+
         public override RiqEntity2 ReadJson(JsonReader reader, Type objectType, RiqEntity2 existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             if (reader.TokenType == JsonToken.Null)
                 return null;
-            
+
             JObject obj = JObject.Load(reader);
 
-            string type = obj["type"].Value<string>();
-            string datamodel = obj["datamodel"].Value<string>();
+            int typeindex = obj["type"].Value<int>();
             int version = obj["version"].Value<int>();
+            int datamodelindex = obj["model"].Value<int>();
 
-            RiqEntity2 entity = new(type, datamodel, version);
+            RiqEntity2 entity = new(types[typeindex], datamodels[datamodelindex], version);
 
-            JObject dynamicData = obj["dynamicData"].Value<JObject>();
+            JObject dynamicData = obj["data"].Value<JObject>();
 
             foreach (KeyValuePair<string, JToken> kvp in dynamicData)
             {
@@ -37,27 +51,20 @@ namespace Jukebox
             writer.WriteStartObject();
 
             writer.WritePropertyName("type");
-            writer.WriteValue(value.Type);
-
-            writer.WritePropertyName("datamodel");
-            writer.WriteValue(value.DatamodelHash.StringValue);
+            writer.WriteValue(value.SerializedTypeIndex);
 
             writer.WritePropertyName("version");
             writer.WriteValue(value.Version);
 
-            writer.WritePropertyName("dynamicData");
+            writer.WritePropertyName("model");
+            writer.WriteValue(value.SerializedDatamodelIndex);
+
+            writer.WritePropertyName("data");
             writer.WriteStartObject();
-            foreach (KeyValuePair<int, object> kvp in value.DynamicData)
+            foreach (RiqHashedKey key in value.Keys)
             {
-                RiqHashedKey k = value.Keys.Find(k => k.Hash == kvp.Key);
-
-                if (k == null)
-                {
-                    continue;
-                }
-
-                writer.WritePropertyName(k.StringValue);
-                serializer.Serialize(writer, kvp.Value);
+                writer.WritePropertyName(key.StringValue);
+                serializer.Serialize(writer, value.DynamicData[key.Hash], value.DynamicData[key.Hash].GetType());
             }
             writer.WriteEndObject();
 

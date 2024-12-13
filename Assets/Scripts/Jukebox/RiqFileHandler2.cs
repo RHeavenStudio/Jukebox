@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Threading.Tasks;
@@ -259,7 +260,7 @@ namespace Jukebox
                 Directory.CreateDirectory(audioDir);
 
             string songName = $"song{index}";
-            
+
             string[] files = Directory.GetFiles(audioDir, songName + ".*");
             if (files.Length != 0)
             {
@@ -380,6 +381,85 @@ namespace Jukebox
                 File.Delete(Path.Combine(tempDir, "lock"));
             }
         }
+        #endregion
+
+        #region Old File Conversion
+#if JUKEBOX_V1
+        /// <summary>
+        /// Assumes a v1 RIQ was extracted to the temporary cache.
+        /// </summary>
+        public static void UpgradeOldStructure()
+        {
+            if (!Directory.Exists(treeDir)) return;
+            if (CheckVersion() >= 2) return;
+
+            string oldBeatmapPath = Path.Combine(treeDir, "remix.json");
+            string oldSongPath = Path.Combine(treeDir, "song.bin");
+
+            if (!File.Exists(oldBeatmapPath)) throw new FileNotFoundException("old style remix.json not found in RIQ file (may not be a v1 riq?)");
+
+            RiqBeatmap oldBeatmap = RiqFileHandler.ReadRiq();
+
+            RiqMetadata metadata = new(VERSION, oldBeatmap.data.riqOrigin);
+            foreach (KeyValuePair<string, object> kvp in oldBeatmap.data.properties)
+            {
+                RiqHashedKey key = RiqHashedKey.CreateFrom(kvp.Key);
+                metadata.CreateEntry(key.StringValue, kvp.Value);
+            }
+
+            RiqBeatmap2 beatmap = new(VERSION);
+            beatmap.WithOffset(oldBeatmap.data.offset);
+            foreach (RiqEntity oldEntity in oldBeatmap.data.entities)
+            {
+                RiqEntity2 entity = ConvertOldEntity(oldEntity);
+                beatmap.AddEntity(entity);
+            }
+            foreach (RiqEntity oldTempoChange in oldBeatmap.data.tempoChanges)
+            {
+                RiqEntity2 entity = ConvertOldEntity(oldTempoChange);
+                beatmap.AddEntity(entity);
+            }
+            foreach (RiqEntity oldVolumeChange in oldBeatmap.data.volumeChanges)
+            {
+                RiqEntity2 entity = ConvertOldEntity(oldVolumeChange);
+                beatmap.AddEntity(entity);
+            }
+            foreach (RiqEntity oldSectionMarker in oldBeatmap.data.beatmapSections)
+            {
+                RiqEntity2 entity = ConvertOldEntity(oldSectionMarker);
+                beatmap.AddEntity(entity);
+            }
+
+            WriteMetadata(metadata);
+            WriteChart(0, beatmap);
+            if (File.Exists(oldSongPath))
+            {
+                // this keeps the .bin extension but the audio reader will still try to determine type based on content
+                WriteAudio(0, oldSongPath);
+                File.Delete(oldSongPath);
+            }
+
+            File.Delete(oldBeatmapPath);
+        }
+
+        static RiqEntity2 ConvertOldEntity(RiqEntity oldEntity)
+        {
+            RiqEntity2 entity = new(oldEntity.data.type, oldEntity.datamodel, oldEntity.version);
+
+            //manually add beat and length
+            entity.CreateProperty("beat", oldEntity.beat);
+            entity.CreateProperty("length", oldEntity.length);
+
+            foreach (KeyValuePair<string, object> kvp in oldEntity.data.dynamicData)
+            {
+                RiqHashedKey key = RiqHashedKey.CreateFrom(kvp.Key);
+                entity.Keys.Add(key);
+                entity.DynamicData.Add(key.Hash, kvp.Value);
+            }
+
+            return entity;
+        }
+#endif
         #endregion
     }
 }

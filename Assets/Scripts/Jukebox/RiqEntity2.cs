@@ -20,6 +20,9 @@ namespace Jukebox
         readonly List<RiqHashedKey> keys = new();
         readonly Dictionary<int, object> dynamicData = new();
 
+        public int SerializedDatamodelIndex;
+        public int SerializedTypeIndex;
+
         public List<RiqHashedKey> Keys { get => keys; }
         public Dictionary<int, object> DynamicData { get => dynamicData; }
 
