@@ -160,13 +160,56 @@ namespace Jukebox
         /// <summary>
         /// Add a new property to the entity.
         /// </summary>
-        /// <param name="key">Key of the property</param>
+        /// <param name="key">A <see cref="RiqHashedKey"/> object representing the property's key</param>
         /// <param name="defaultValue">Default value of the property</param>
         /// <returns>This <see cref="RiqEntity"/> object</returns>
         public RiqEntity AddProperty(RiqHashedKey key, object defaultValue)
         {
             CreateProperty(key, defaultValue);
             return this;
+        }
+
+        /// <summary>
+        /// Tries to get a property from the entity as the specified type.
+        /// </summary>
+        /// <typeparam name="T">Type to get the property as</typeparam>
+        /// <param name="key">A <see cref="RiqHashedKey"/> object representing the property's key</param>
+        /// <param name="value">Returned value</param>
+        /// <returns>True if the property exists and can be returned as the specified type.</returns>
+        public bool TryGetProperty<T>(RiqHashedKey key, out T value)
+        {
+            return TryGetProperty(key.Hash, out value);
+        }
+
+        /// <summary>
+        /// Tries to get a property from the entity as the specified type.
+        /// </summary>
+        /// <typeparam name="T">Type to get the property as</typeparam>
+        /// <param name="hash">Name of the property to get</param>
+        /// <param name="value">Returned value</param>
+        /// <returns>True if the property exists and can be returned as the specified type.</returns>
+        public bool TryGetProperty<T>(string key, out T value)
+        {
+            RiqHashedKey hashkey = RiqHashedKey.CreateFrom(key);
+            return TryGetProperty(hashkey, out value);
+        }
+
+        /// <summary>
+        /// Tries to get a property from the entity as the specified type.
+        /// </summary>
+        /// <typeparam name="T">Type to get the property as</typeparam>
+        /// <param name="hash">Hash of the property key</param>
+        /// <param name="value">Returned value</param>
+        /// <returns>True if the property exists and can be returned as the specified type.</returns>
+        public bool TryGetProperty<T>(int hash, out T value)
+        {
+            if (dynamicData.ContainsKey(hash))
+            {
+                value = (T)Convert.ChangeType(dynamicData[hash], typeof(T));
+                return true;
+            }
+            value = default;
+            return false;
         }
     }
 }
