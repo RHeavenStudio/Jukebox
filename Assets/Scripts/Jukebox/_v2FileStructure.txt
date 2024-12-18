@@ -1,24 +1,22 @@
-/*
-    New file structure:
-    / Current
-        / Resources
-            // Holds implementation-specific resources that may-or-may-not be read by the user
-            // user is expected to use this manually
-            / Images
-            / Sounds
-            / Assetbundles
-            . . .
-        / Audio
-            // Holds per-chart BGM streams
-            song0.wav
-            song1.mp3
-            song2.ogg
-            . . .
-        / Charts
-            // holds RIQ chart information
-            chart0.json
-            chart1.json
-            chart2.json
-        .meta
-            // json format metadata
-*/
+New file structure:
+/ Current
+    / Resources
+        // Holds implementation-specific resources that may-or-may-not be read by the user
+        // user is expected to use this manually
+        / Images
+        / Sounds
+        / Assetbundles
+        . . .
+    / Audio
+        // Holds per-chart BGM streams
+        song0.wav
+        song1.mp3
+        song2.ogg
+        . . .
+    / Charts
+        // holds RIQ chart information
+        chart0.json
+        chart1.json
+        chart2.json
+    .meta
+        // json format metadata
