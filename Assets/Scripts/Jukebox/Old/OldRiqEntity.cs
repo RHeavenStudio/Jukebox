@@ -45,7 +45,7 @@ namespace Jukebox.Legacy
 #if ENABLE_IL2CPP
         public Dictionary<string, object> dynamicData { get => data.dynamicData; set => data.dynamicData = value; }
 
-        public RiqEntity(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, object> dynamicData = null)
+        public OldRiqEntity(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, object> dynamicData = null)
         {
 #else
         public Dictionary<string, dynamic> dynamicData { get => data.dynamicData; set => data.dynamicData = value; }
@@ -149,7 +149,7 @@ namespace Jukebox.Legacy
 
 #if ENABLE_IL2CPP
         public Dictionary<string, object> dynamicData;
-        public RiqEntityData(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, object> dynamicData = null)
+        public OldRiqEntityData(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, object> dynamicData = null)
         {
 #else
         public Dictionary<string, dynamic> dynamicData;
