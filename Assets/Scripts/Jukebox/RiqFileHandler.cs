@@ -1,91 +1,62 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Collections;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.Networking;
 
+#if JUKEBOX_V1
+using Jukebox.Legacy;
+#endif
+
 namespace Jukebox
 {
-    /// <summary>
-    /// Handles file I/O with riq files
-    /// Methods here can be changed to suit the use case of the game
-    /// (for example, you may want to load chart contents directly into memory instead of using a file cache)
-    /// </summary>
     public static class RiqFileHandler
     {
-        public delegate string AudioConverterHandler(string filePath, AudioType audioType, string specificType);
-        public static AudioConverterHandler AudioConverter;
+        const int VERSION = 2;
 
         static Guid? CacheID = null;
-        static string tmpDir = Path.Combine(Application.temporaryCachePath, "RIQCache");
-        static string treeDir = Path.Combine(tmpDir, "Current");
-        static string resDir = Path.Combine(treeDir, "Resources");
+        static readonly string tempDir = Path.Combine(Application.temporaryCachePath, "RIQCache");
+        static readonly string treeDir = Path.Combine(tempDir, "Current");
+        static readonly string resourcesDir = Path.Combine(treeDir, "Resources");
+        static readonly string audioDir = Path.Combine(treeDir, "Music");
+        static readonly string chartDir = Path.Combine(treeDir, "Charts");
+        static readonly string metadataDir = Path.Combine(treeDir, ".meta");
+
+
         static AudioClip streamedAudioClip;
         static UnityWebRequest streamedAudioRequest;
-        static float[] songChunk;
-        static bool songChunkLock = false;
 
-        public static string RiqCachePath => treeDir;
+        public static string CachePath => treeDir;
 
-        public static AudioClip StreamedAudioClip
-        {
-            get
-            {
-                return streamedAudioClip;
-            }
-        }
+        static RiqMetadata currentMetadata;
 
-        public static UnityWebRequest StreamedAudioRequest
-        {
-            get
-            {
-                return streamedAudioRequest;
-            }
-        }
-
-        public static float[] LastSongChunk
-        {
-            get
-            {
-                return songChunk;
-            }
-        }
-
+        #region Read
         /// <summary>
         /// Extracts the contents of a RIQ file into a temporary directory.
-        /// For Heaven Studio and other Unity Engine games, this uses the normal temporaryCachePath
+        /// For Unity Engine games, this uses the normal temporaryCachePath.
         /// </summary>
         /// <param name="path">path to the .riq file</param>
         /// <returns>path to the extracted riq contents</returns>
-        public static string ExtractRiq(string path)
+        /// <exception cref="ArgumentNullException">Path is null or empty</exception>
+        /// <exception cref="FileNotFoundException">RIQ file does not exist at provided path</exception>
+        /// <exception cref="IOException">RIQ cache is locked</exception>
+        public static string Extract(string path)
         {
-            if (path == string.Empty || path == null) throw new System.ArgumentNullException("path", "path cannot be null or empty");
-            if (!File.Exists(path)) throw new System.IO.FileNotFoundException("path", $"RIQ file does not exist at path {path}");
-            if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot extract RIQ file at path {path}");
+            if (path == string.Empty || path == null) throw new ArgumentNullException("path", "path cannot be null or empty");
+            if (!File.Exists(path)) throw new FileNotFoundException("path", $"RIQ file does not exist at path {path}");
+            if (IsCacheLocked()) throw new IOException($"RIQ cache is locked, cannot extract RIQ file at path {path}");
 
             try
             {
                 ClearCache();
                 ZipFile.ExtractToDirectory(path, treeDir, true);
-
-                string oldSongPath = Path.Combine(treeDir, "song.ogg");
-                string songPath = Path.Combine(treeDir, "song.bin");
-
-                // if we have a legacy style song.ogg, rename it to song.bin
-                if (File.Exists(oldSongPath))
-                {
-                    File.Move(oldSongPath, songPath);
-                }
-
-                if (File.Exists(songPath))
-                {
-                    FileInfo inf = new FileInfo(songPath);
-                    if (inf.Length == 0) File.Delete(songPath);
-                }
+                currentMetadata = null;
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
                 Debug.LogError($"Error extracting RIQ file: {e.Message}");
                 throw e;
@@ -94,44 +65,133 @@ namespace Jukebox
             return treeDir;
         }
 
-        /// <summary>
-        /// reads a .riq json file into a RiqBeatmap object
-        /// </summary>
-        /// <param name="path">directory to extracted riq JSON</param>
-        /// <returns>an instance of RiqBeatmap</returns>
-        public static RiqBeatmap ReadRiq()
+        [Obsolete("Use Extract instead.")]
+        public static string ExtractRiq(string path)
         {
-            if (treeDir == string.Empty || treeDir == null) throw new System.ArgumentNullException("path", "path cannot be null or empty");
-
-            string jsonPath = Path.Combine(treeDir, "remix.json");
-            if (!File.Exists(jsonPath)) throw new System.IO.FileNotFoundException("path", $"riq chart file does not exist at path {jsonPath}, was an RIQ file properly extracted?");
-            string json = File.ReadAllText(jsonPath);
-            RiqBeatmap beatmap = new RiqBeatmap(json);
-
-            return beatmap;
+            return Extract(path);
         }
 
         /// <summary>
-        /// creates an AudioClip from the song file in the temporary cache
+        /// Checks the version of the RIQ file.
         /// </summary>
-        /// <param name="stream">should the audio be streamed?</param>
-        /// <exception cref="System.IO.FileNotFoundException">song file doesn't exist in temporary cache</exception>
-        /// <exception cref="System.IO.InvalidDataException">song file is of unknown type</exception>
-        public static IEnumerator LoadSong(bool stream = true, bool disposeHandler = true)
+        /// <returns>Version of the RIQ file.</returns>
+        /// <exception cref="InvalidOperationException">RIQ file is invalid or is an unsupported legacy format.</exception>
+        /// <exception cref="Exception">Error reading the metadata.</exception>
+        public static int CheckVersion()
         {
-            string url = "file://" + Path.Combine(treeDir, "song.bin");
+            if (!File.Exists(metadataDir))
+            {
+#if JUKEBOX_V1
+                string oldJsonPath = Path.Combine(treeDir, "remix.json");
+                if (File.Exists(oldJsonPath))
+                {
+                    // represents both v1 riq and older .tengoku / .rhmania files
+                    // latter case is handled by the v1 importer
+                    return 1;
+                }
+                else
+                {
+                    throw new InvalidOperationException("RIQ file is not valid.");
+                }
+#else
+                throw new InvalidOperationException("RIQ file is not valid.");
+#endif
+            }
+
+            try
+            {
+                if (currentMetadata is null)
+                {
+                    ReadMetadata();
+                }
+                return currentMetadata.Version;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error reading RIQ metadata: {e.Message}");
+                throw e;
+            }
+        }
+
+        /// <summary>
+        /// Parses the RIQ file's metadata.
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException">RIQ file is invalid.</exception>
+        /// <exception cref="Exception">Error reading the metadata.</exception>
+        public static RiqMetadata ReadMetadata()
+        {
+            if (!File.Exists(metadataDir))
+            {
+                throw new InvalidOperationException("RIQ file is not valid. Missing metadata. (Could be an older version?)");
+            }
+
+            string meta = File.ReadAllText(metadataDir);
+            try
+            {
+                currentMetadata = JsonConvert.DeserializeObject<RiqMetadata>(meta);
+                return currentMetadata;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error reading RIQ metadata: {e.Message}");
+                throw e;
+            }
+        }
+
+        /// <summary>
+        /// Reads a chart from the cache.
+        /// Use <see cref="Extract"/> first to extract the contents of a RIQ file. 
+        /// </summary>
+        /// <param name="index">Chart index to read</param>
+        /// <returns>A <see cref="RiqBeatmap"/> object</returns>
+        /// <exception cref="FileNotFoundException">Chart file not found</exception>
+        public static RiqBeatmap ReadChart(int index)
+        {
+            string chartName = $"chart{index}";
+            string chartPath = Path.Combine(chartDir, chartName + ".json");
+            if (!File.Exists(chartPath))
+            {
+                throw new FileNotFoundException($"Chart {index} not found in RIQ file");
+            }
+
+            string chartJson = File.ReadAllText(chartPath);
+            Debug.Log($"Jukebox loaded chart {chartPath} ({chartJson.Length} bytes)");
+
+            return JsonConvert.DeserializeObject<RiqBeatmap>(chartJson);
+        }
+
+        /// <summary>
+        /// Coroutine
+        /// Uses <see cref="UnityWebRequestMultimedia"/> to load an audio clip from the cache.
+        /// Use <see cref="Extract"/> first to extract the contents of a RIQ file. 
+        /// </summary>
+        /// <param name="index">Chart index to get the audio clip for</param>
+        /// <returns></returns>
+        /// <exception cref="FileNotFoundException">Audio file not found</exception>
+        /// <exception cref="InvalidDataException">Unknown audio format</exception>
+        /// <exception cref="Exception">Error loading audio</exception>
+        public static IEnumerator ReadAudio(int index)
+        {
+            string songName = $"song{index}";
             streamedAudioClip = null;
-            if (!File.Exists(Path.Combine(treeDir, "song.bin"))) throw new System.IO.FileNotFoundException($"Chart song file does not exist at path {Path.Combine(treeDir, "song.bin")}");
+            string[] files = Directory.GetFiles(audioDir, songName + ".*");
+            if (files.Length == 0)
+            {
+                throw new FileNotFoundException($"Song {index} not found in RIQ file");
+            }
 
-            FileInfo inf = new FileInfo(Path.Combine(treeDir, "song.bin"));
-            if (inf.Length == 0) throw new System.IO.FileNotFoundException($"Chart song file does not exist at path {Path.Combine(treeDir, "song.bin")}");
+            AudioType audioType = AudioFormats.GetAudioType(files[0], out _);
+            if (audioType == AudioType.UNKNOWN)
+            {
+                throw new InvalidDataException($"Unknown audio format for song {index} (at {files[0]})");
+            }
 
-            AudioType audioType = AudioFormats.GetAudioType(Path.Combine(treeDir, "song.bin"), out _);
-            if (audioType == AudioType.UNKNOWN) throw new System.IO.InvalidDataException($"file at path {Path.Combine(treeDir, "song.bin")} is of unknown type");
-
-            streamedAudioRequest = UnityWebRequestMultimedia.GetAudioClip(url, audioType);
+            string uri = "file://" + files[0];
+            streamedAudioRequest = UnityWebRequestMultimedia.GetAudioClip(uri, audioType);
             ((DownloadHandlerAudioClip)streamedAudioRequest.downloadHandler).compressed = false;
-            ((DownloadHandlerAudioClip)streamedAudioRequest.downloadHandler).streamAudio = stream;
+            ((DownloadHandlerAudioClip)streamedAudioRequest.downloadHandler).streamAudio = true;
+
             streamedAudioRequest.SendWebRequest();
             while (!(streamedAudioRequest.result == UnityWebRequest.Result.ConnectionError) && streamedAudioRequest.downloadedBytes < 4096)
             {
@@ -140,213 +200,133 @@ namespace Jukebox
 
             if (streamedAudioRequest.result == UnityWebRequest.Result.ConnectionError)
             {
-                Debug.Log($"error loading song: {streamedAudioRequest.error}");
-                yield break;
+                throw new Exception($"Error loading song {uri}: {streamedAudioRequest.error}");
             }
 
-            Debug.Log($"Jukebox loaded song {url} ({streamedAudioRequest.downloadedBytes} bytes)");
+            Debug.Log($"Jukebox loaded song {uri} ({streamedAudioRequest.downloadedBytes} bytes)");
             streamedAudioClip = ((DownloadHandlerAudioClip)streamedAudioRequest.downloadHandler).audioClip;
-            yield return null;
 
-            if (disposeHandler)
-            {
-                streamedAudioRequest.Dispose();
-                streamedAudioRequest = null;
-            }
+            streamedAudioRequest.Dispose();
+            streamedAudioRequest = null;
         }
 
         /// <summary>
-        /// Disposes the UnityWebRequest used to load the song file
+        /// Gets the audio clip that was loaded by <see cref="ReadAudio"/>.
         /// </summary>
-        public static void DisposeAudioWebRequest()
+        /// <returns>Loaded audio clip</returns>
+        public static AudioClip GetLoadedSong()
         {
-            if (streamedAudioRequest != null)
-            {
-                streamedAudioRequest.Dispose();
-                streamedAudioRequest = null;
-            }
+            return streamedAudioClip;
         }
+        #endregion
 
+        #region Write
         /// <summary>
-        /// fills a buffer with a chunk of the song file in the temporary cache
-        /// note: this blocks the main thread
+        /// Writes chart metadata <see cref="RiqMetadata"/> to the cache.
         /// </summary>
-        /// <param name="startSample">start of wanted audio</param>
-        /// <param name="numSamples">length of buffer</param>
-        /// <exception cref="System.IO.FileNotFoundException">song file doesn't exist in temporary cache</exception>
-        public static IEnumerator GetSongSamples(int startSample, int numSamples)
+        /// <param name="metadata"><see cref="RiqMetadata"/> to write</param>
+        /// <exception cref="ArgumentNullException">Provided metadata is null</exception>
+        /// <exception cref="IOException">RIQ cache is locked</exception>
+        public static void WriteMetadata(RiqMetadata metadata)
         {
-            // we can't get sample data from streamed audio
-            // temporarily load the entire song into memory to fill a buffer
+            if (metadata is null) throw new ArgumentNullException("metadata", "metadata cannot be null");
+            if (IsCacheLocked()) throw new IOException("RIQ cache is locked, cannot write metadata");
 
-            string url = "file://" + Path.Combine(treeDir, "song.bin");
-            AudioClip audio = null;
-            if (!File.Exists(Path.Combine(treeDir, "song.bin"))) throw new System.IO.FileNotFoundException("path", $"Chart song file does not exist at path {Path.Combine(treeDir, "song.bin")}");
-
-            AudioType audioType = AudioFormats.GetAudioType(Path.Combine(treeDir, "song.bin"), out _);
-            songChunk = new float[numSamples];
-            songChunkLock = true;
-
-            using (var www = UnityWebRequestMultimedia.GetAudioClip(url, audioType))
-            {
-                ((DownloadHandlerAudioClip)www.downloadHandler).streamAudio = false;
-
-                yield return www.SendWebRequest();
-
-                if (www.result == UnityWebRequest.Result.ConnectionError)
-                {
-                    Debug.Log($"error loading song: {www.error}");
-                    songChunkLock = false;
-                    songChunk = null;
-                    yield break;
-                }
-                Debug.Log(www.result);
-
-                Debug.Log(Time.realtimeSinceStartup);
-                audio = ((DownloadHandlerAudioClip)www.downloadHandler).audioClip;
-            }
-            Debug.Log(Time.realtimeSinceStartup);
-            audio.GetData(songChunk, startSample);
-            audio = null;
-            songChunkLock = false;
-        }
-
-        /// <summary>
-        /// gets the file path of a resource in the temporary cache
-        /// the first match will be returned
-        /// search can be further narrowed by specifying a subdirectory
-        /// the end app is expected to do its own processing on the returned path
-        /// </summary>
-        /// <param name="resourceName"></param>
-        /// <returns></returns>
-        /// <exception cref="System.ArgumentNullException"></exception>
-        public static string GetResourcePath(string resourceName, string subDir = "")
-        {
-            if (resourceName == string.Empty || resourceName == null) throw new System.ArgumentNullException("path", "resource name cannot be null or empty");
-            if (!Directory.Exists(Path.Combine(resDir, subDir))) throw new System.IO.DirectoryNotFoundException($"RIQ resource directory does not exist at path {Path.Combine(resDir, subDir)}");
-            // find files with the same name
-            foreach (string file in Directory.GetFiles(Path.Combine(resDir, subDir), resourceName + ".*", SearchOption.AllDirectories))
-            {
-                return file;
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// writes a beatmap to the "remix.json" file in the temporary cache
-        /// </summary>
-        /// <param name="beatmap">RiqBeatmap to serialize</param>
-        public static void WriteRiq(RiqBeatmap beatmap)
-        {
-            if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot write RIQ file");
             if (!Directory.Exists(treeDir))
                 Directory.CreateDirectory(treeDir);
-            string jsonPath = Path.Combine(treeDir, "remix.json");
-            string json = beatmap.Serialize();
-            File.WriteAllText(jsonPath, json, System.Text.Encoding.UTF8);
+
+            string meta = JsonConvert.SerializeObject(metadata);
+            File.WriteAllText(metadataDir, meta);
         }
 
         /// <summary>
-        /// copies a song file to the temporary cache, renaming it to "song.bin"
+        /// Writes a chart <see cref="RiqBeatmap"/> to the cache.
         /// </summary>
-        /// <param name="songPath">path to a song file</param>
-        public static void WriteSong(string songPath)
+        /// <param name="index">Index of the chart to write for</param>
+        /// <param name="chart"><see cref="RiqBeatmap"/> to write</param>
+        /// <exception cref="ArgumentNullException">Provided chart is null</exception>
+        /// <exception cref="IOException">RIQ cache is locked</exception>
+        /// <exception cref="InvalidOperationException">Chart index is invalid</exception>
+        public static void WriteChart(int index, RiqBeatmap chart)
         {
-            if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot write audio file");
-            if (songPath == string.Empty || songPath == null) throw new System.ArgumentNullException("path", "path cannot be null or empty");
-            if (!File.Exists(songPath)) throw new System.IO.FileNotFoundException("path", $"Audio file does not exist at path {songPath}");
+            if (chart is null) throw new ArgumentNullException("chart", "chart cannot be null");
+            if (IsCacheLocked()) throw new IOException("RIQ cache is locked, cannot write chart");
+            if (index < 0) throw new InvalidOperationException("chart index must be greater than 0");
 
-            if (AudioConverter != null)
-            {
-                AudioType type = AudioFormats.GetAudioType(songPath, out string specificType);
-                songPath = AudioConverter(songPath, type, specificType);
-                if (!File.Exists(songPath)) throw new System.IO.FileNotFoundException("path", $"converted audio file does not exist at path {songPath}");
-            }
+            if (!Directory.Exists(chartDir))
+                Directory.CreateDirectory(chartDir);
 
+            string chartName = $"chart{index}";
+            string chartPath = Path.Combine(chartDir, chartName + ".json");
+            string chartJson = chart.Serialize();
+            File.WriteAllText(chartPath, chartJson);
+        }
+
+        /// <summary>
+        /// Copies an audio file to the cache.
+        /// </summary>
+        /// <param name="index">Index of the chart to copy an audio file for</param>
+        /// <param name="audioPath">Path to the audio file</param>
+        /// <exception cref="ArgumentNullException">path to the audio file is null or empty</exception>
+        /// <exception cref="FileNotFoundException">audio file does not exist at provided path</exception>
+        /// <exception cref="IOException">RIQ cache is locked</exception>
+        /// <exception cref="InvalidOperationException">chart index is invalid</exception>
+        /// <exception cref="System.IO.InvalidDataException">audio file is of unknown type</exception>
+        public static void WriteAudio(int index, string audioPath)
+        {
+            if (audioPath == string.Empty || audioPath == null) throw new ArgumentNullException("audioPath", "audioPath cannot be null or empty");
+            if (!File.Exists(audioPath)) throw new FileNotFoundException("audioPath", $"audio file does not exist at path {audioPath}");
+            if (IsCacheLocked()) throw new IOException("RIQ cache is locked, cannot write audio");
+            if (index < 0) throw new InvalidOperationException("audio index must be greater than 0");
             // check if songPath is a valid audio file
-            if (AudioFormats.GetAudioType(songPath, out _) == AudioType.UNKNOWN)
+            if (AudioFormats.GetAudioType(audioPath, out _) == AudioType.UNKNOWN)
             {
                 // if no user processing is defined on unknown file type, or user processing returns unknown filetype, throw exception
-                throw new System.IO.InvalidDataException($"file at path {songPath} is of unknown type");
+                throw new System.IO.InvalidDataException($"file at path {audioPath} is of unknown type");
             }
 
-            if (!Directory.Exists(treeDir))
-                Directory.CreateDirectory(treeDir);
+            if (!Directory.Exists(audioDir))
+                Directory.CreateDirectory(audioDir);
 
-            string songDest = Path.Combine(treeDir, "song.bin");
-            File.Copy(songPath, songDest, true);
+            DeleteOldAudio(index);
+
+            string songPath = Path.Combine(audioDir, $"song{index}{Path.GetExtension(audioPath)}");
+            File.Copy(audioPath, songPath, true);
         }
 
-        /// <summary>
-        /// adds / replaces a resource to the riq
-        /// copies the resource to the temporary cache and will be included to the .riq file when packed
-        /// </summary>
-        /// <param name="resourcePath">path of the original resource</param>
-        /// <param name="resourceName">new name of the resource</param>
-        /// <param name="subDir">subdirectory in the resources</param>
-        /// <param name="ignoreExtension">should the extension of the resource be ignored when replacing resources?</param>
-        /// <exception cref="System.IO.IOException"></exception>
-        /// <exception cref="System.ArgumentNullException"></exception>
-        /// <exception cref="System.IO.FileNotFoundException"></exception>
-        public static void AddResource(string resourcePath, string resourceName, string subDir = "", bool ignoreExtension = true)
+        static void DeleteOldAudio(int index)
         {
-            if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot write resource file");
-            if (resourcePath == string.Empty || resourcePath == null) throw new System.ArgumentNullException("path", "path cannot be null or empty");
-            if (resourceName == string.Empty || resourcePath == null) throw new System.ArgumentNullException("name", "name of resource cannot be null or empty");
-            if (!File.Exists(resourcePath)) throw new System.IO.FileNotFoundException("path", $"Resource file does not exist at path {resourcePath}");
-
-            if (!Directory.Exists(resDir))
-                Directory.CreateDirectory(resDir);
-
-            if (subDir != string.Empty && subDir != null)
+            string songName = $"song{index}";
+            string[] files = Directory.GetFiles(audioDir, songName + ".*");
+            if (files.Length != 0)
             {
-                if (!Directory.Exists(Path.Combine(resDir, subDir)))
-                    Directory.CreateDirectory(Path.Combine(resDir, subDir));
-            }
-
-            string extension = Path.GetExtension(resourcePath);
-            if (ignoreExtension)
-            {
-                // find any file at the target path with the same name
-                foreach (string file in Directory.GetFiles(Path.Combine(resDir, subDir), resourceName + ".*", SearchOption.TopDirectoryOnly))
+                foreach (string file in files)
                 {
                     File.Delete(file);
                 }
             }
-            string destPath = Path.Combine(resDir, subDir, resourceName + extension);
-            File.Copy(resourcePath, destPath, true);
         }
 
         /// <summary>
-        /// removes a resource from the riq
-        /// all resources with the same name will be removed
+        /// Packs the contents of the temporary cache into a .riq file.
         /// </summary>
-        /// <param name="resourceName">name of the resource(s) to be removed</param>
-        /// <exception cref="System.IO.IOException"></exception>
-        /// <exception cref="System.ArgumentNullException"></exception>
-        public static void RemoveResource(string resourceName, string subDir = "")
+        /// <param name="destPath">Path to save the .riq file</param>
+        /// <param name="backup">If destination file exists, make a backup</param>
+        public static void Pack(string destPath, bool backup = true)
         {
-            if (IsCacheLocked()) throw new System.IO.IOException($"RIQ cache is locked, cannot write resource file");
-            if (resourceName == string.Empty || resourceName == null) throw new System.ArgumentNullException("path", "path cannot be null or empty");
-            if (!Directory.Exists(resDir)) throw new System.IO.DirectoryNotFoundException($"RIQ resource directory does not exist at path {resDir}");
-            // find files with the same name
-            foreach (string file in Directory.GetFiles(Path.Combine(resDir, subDir), resourceName + ".*", SearchOption.AllDirectories))
+#if JUKEBOX_V1
+            // if not already done, delete old json and song files, they should be in their new locations by now
+            string oldJsonPath = Path.Combine(treeDir, "remix.json");
+            if (File.Exists(oldJsonPath))
             {
-                File.Delete(file);
+                File.Delete(oldJsonPath);
             }
-        }
-
-        /// <summary>
-        /// packs the contents of the temporary cache into a .riq file
-        /// </summary>
-        /// <param name="destPath">where the new .riq will be saved to</param>
-        public static void PackRiq(string destPath, bool backup = true)
-        {
-            if (treeDir == string.Empty || treeDir == null) throw new System.ArgumentNullException("path", "temporary directory cannot be null or empty");
-            if (destPath == string.Empty || destPath == null) throw new System.ArgumentNullException("path", "destination path cannot be null or empty");
-
-            string jsonPath = Path.Combine(treeDir, "remix.json");
-            if (!File.Exists(jsonPath)) throw new System.IO.FileNotFoundException("path", $"riq chart file does not exist at path {jsonPath}, was an RIQ file properly created?");
+            string oldSongPath = Path.Combine(treeDir, "song.bin");
+            if (File.Exists(oldSongPath))
+            {
+                File.Delete(oldSongPath);
+            }
+#endif
 
             if (File.Exists(destPath))
             {
@@ -358,18 +338,26 @@ namespace Jukebox
             ZipFile.CreateFromDirectory(treeDir, destPath, System.IO.Compression.CompressionLevel.Optimal, false);
         }
 
+        [Obsolete("Use Pack instead.")]
+        public static void PackRiq(string destPath, bool backup = true)
+        {
+            Pack(destPath, backup);
+        }
+
         /// <summary>
         /// makes a backup of the current .riq file in the temporary cache
         /// and puts it in persistent data
         /// </summary>
         public async static Task BackupRiq()
         {
-            string bakDir = Path.Combine(Application.persistentDataPath, "RIQBackup");
-            if (!Directory.Exists(bakDir))
-                Directory.CreateDirectory(bakDir);
-            await Task.Run(() => PackRiq(Path.Combine(bakDir, "backup.riq"), true));
+            string backupDir = Path.Combine(Application.persistentDataPath, "RIQBackup");
+            if (!Directory.Exists(backupDir))
+                Directory.CreateDirectory(backupDir);
+            await Task.Run(() => Pack(Path.Combine(backupDir, "backup.riq"), true));
         }
+        #endregion
 
+        #region Cache
         /// <summary>
         /// clears the temporary cache if it exists
         /// </summary>        
@@ -388,48 +376,129 @@ namespace Jukebox
         /// checks if the temporary cache has a lock set
         /// use to safeguard against multiple processes accessing the cache at once
         /// </summary>
-        /// <returns>is the cache locked? or false if the cache doesn't exist</returns>
+        /// <returns>is the cache locked? always false if the cache doesn't exist</returns>
         public static bool IsCacheLocked()
         {
-            if (!Directory.Exists(tmpDir)) return false;
-            if (!File.Exists(Path.Combine(tmpDir, "lock"))) return false;
-            string lockID = File.ReadAllText(Path.Combine(tmpDir, "lock"));
+            if (!Directory.Exists(tempDir)) return false;
+            if (!File.Exists(Path.Combine(tempDir, "lock"))) return false;
+            string lockID = File.ReadAllText(Path.Combine(tempDir, "lock"));
             return lockID != CacheID.ToString();
         }
 
         /// <summary>
         /// locks the riq cache
-        /// only needs to be called on app boot
-        /// don't call if locking is not necessary
+        /// only needs to be called once on startup
+        /// do not call if locking is not necessary
         /// </summary>
         public static void LockCache()
         {
             if (CacheID != null) return;
 
-            if (!Directory.Exists(tmpDir))
-                Directory.CreateDirectory(tmpDir);
+            if (!Directory.Exists(tempDir))
+                Directory.CreateDirectory(tempDir);
 
             CacheID = Guid.NewGuid();
 
-            if (Directory.Exists(tmpDir) && !File.Exists(Path.Combine(tmpDir, "lock")))
+            if (Directory.Exists(tempDir) && !File.Exists(Path.Combine(tempDir, "lock")))
             {
-                File.WriteAllText(Path.Combine(tmpDir, "lock"), CacheID.ToString());
+                File.WriteAllText(Path.Combine(tempDir, "lock"), CacheID.ToString());
             }
         }
 
         /// <summary>
         /// unlocks the riq cache
-        /// only needs to be called on app exit
+        /// only needs to be called once on shutdown
         /// </summary>
         public static void UnlockCache()
         {
-            if (!Directory.Exists(tmpDir)) return;
-            if (!File.Exists(Path.Combine(tmpDir, "lock"))) return;
-            string lockID = File.ReadAllText(Path.Combine(tmpDir, "lock"));
+            if (!Directory.Exists(tempDir)) return;
+            if (!File.Exists(Path.Combine(tempDir, "lock"))) return;
+            string lockID = File.ReadAllText(Path.Combine(tempDir, "lock"));
             if (lockID == CacheID.ToString())
             {
-                File.Delete(Path.Combine(tmpDir, "lock"));
+                File.Delete(Path.Combine(tempDir, "lock"));
             }
         }
+        #endregion
+
+        #region Old File Conversion
+#if JUKEBOX_V1
+        /// <summary>
+        /// Upgrades the cache structure of a v1 RIQ to the new structure
+        /// Assumes a v1 RIQ was extracted to the temporary cache.
+        /// </summary>
+        public static void UpgradeOldStructure()
+        {
+            if (!Directory.Exists(treeDir)) return;
+            if (CheckVersion() >= 2) return;
+
+            string oldBeatmapPath = Path.Combine(treeDir, "remix.json");
+            string oldSongPath = Path.Combine(treeDir, "song.bin");
+
+            if (!File.Exists(oldBeatmapPath)) throw new FileNotFoundException("old style remix.json not found in RIQ file (may not be a v1 riq?)");
+
+            OldRiqBeatmap oldBeatmap = OldRiqFileHandler.ReadRiq();
+
+            RiqMetadata metadata = new(VERSION, oldBeatmap.data.riqOrigin);
+            foreach (KeyValuePair<string, object> kvp in oldBeatmap.data.properties)
+            {
+                RiqHashedKey key = RiqHashedKey.CreateFrom(kvp.Key);
+                metadata.CreateEntry(key.StringValue, kvp.Value);
+            }
+
+            RiqBeatmap beatmap = new(VERSION);
+            beatmap.WithOffset(oldBeatmap.data.offset);
+            foreach (OldRiqEntity oldEntity in oldBeatmap.data.entities)
+            {
+                RiqEntity entity = ConvertOldEntity(oldEntity);
+                beatmap.CreateEntity(entity);
+            }
+            foreach (OldRiqEntity oldTempoChange in oldBeatmap.data.tempoChanges)
+            {
+                RiqEntity entity = ConvertOldEntity(oldTempoChange);
+                beatmap.CreateEntity(entity);
+            }
+            foreach (OldRiqEntity oldVolumeChange in oldBeatmap.data.volumeChanges)
+            {
+                RiqEntity entity = ConvertOldEntity(oldVolumeChange);
+                beatmap.CreateEntity(entity);
+            }
+            foreach (OldRiqEntity oldSectionMarker in oldBeatmap.data.beatmapSections)
+            {
+                RiqEntity entity = ConvertOldEntity(oldSectionMarker);
+                beatmap.CreateEntity(entity);
+            }
+
+            WriteMetadata(metadata);
+            WriteChart(0, beatmap);
+            if (File.Exists(oldSongPath))
+            {
+                // this keeps the .bin extension but the audio reader will still try to determine type based on content
+                WriteAudio(0, oldSongPath);
+                File.Delete(oldSongPath);
+            }
+
+            File.Delete(oldBeatmapPath);
+        }
+
+        static RiqEntity ConvertOldEntity(OldRiqEntity oldEntity)
+        {
+            RiqEntity entity = new(oldEntity.data.type, oldEntity.datamodel, oldEntity.version);
+
+            //manually add beat and length
+            entity.CreateProperty("beat", oldEntity.beat);
+            entity.CreateProperty("length", oldEntity.length);
+
+            foreach (KeyValuePair<string, object> kvp in oldEntity.data.dynamicData)
+            {
+                RiqHashedKey key = RiqHashedKey.CreateFrom(kvp.Key);
+                entity.Keys.Add(key);
+                entity.DynamicData.Add(key.Hash, kvp.Value);
+            }
+
+            return entity;
+        }
+#endif
+        #endregion
     }
 }

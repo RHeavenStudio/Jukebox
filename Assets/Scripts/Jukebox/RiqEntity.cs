@@ -1,192 +1,215 @@
 using System;
-using System.Linq;
 using System.Collections.Generic;
-
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Serialization;
 
 namespace Jukebox
 {
-    public class RiqEntityConverter : JsonConverter<RiqEntity>
-    {
-        public override void WriteJson(JsonWriter writer, RiqEntity value, JsonSerializer serializer)
-        {
-            RiqEntityData dat = value.data;
-
-            writer.WriteRawValue(dat.Serialize());
-        }
-
-        public override RiqEntity ReadJson(JsonReader reader, Type objectType, RiqEntity existingValue, bool hasExistingValue, JsonSerializer serializer)
-        {
-            if (reader.TokenType == JsonToken.Null)
-                return null;
-            JObject obj = JObject.Load(reader);
-            RiqEntityData dat = obj.ToObject<RiqEntityData>();
-            RiqEntity e = new RiqEntity(dat);
-
-            return e;
-        }
-    }
-
     [JsonConverter(typeof(RiqEntityConverter))]
     public class RiqEntity
     {
-        public RiqEntityData data;
-        public int uid;
-        public Guid guid;
+        public RiqHashedKey DatamodelHash { get; private set; }
+        public string Type { get; private set; }
+        public int Version { get; private set; }
 
-        public string datamodel { get => data.datamodel; set => data.datamodel = value; }
-        public double beat { get => data.beat; set => data.beat = value; }
-        public float length { get => data.length; set => data.length = value; }
-        public int version { get => data.version; set => data.version = value; }
+        public Guid Guid { get; private set; }
 
-#if ENABLE_IL2CPP
-        public Dictionary<string, object> dynamicData { get => data.dynamicData; set => data.dynamicData = value; }
+        readonly List<RiqHashedKey> keys = new();
+        readonly Dictionary<int, object> dynamicData = new();
 
-        public RiqEntity(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, object> dynamicData = null)
-        {
-#else
-        public Dictionary<string, dynamic> dynamicData { get => data.dynamicData; set => data.dynamicData = value; }
+        public int SerializedDatamodelIndex;
+        public int SerializedTypeIndex;
 
-        public RiqEntity(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, dynamic> dynamicData = null)
-        {
-#endif
-            this.guid = Guid.NewGuid();
-            this.data = new RiqEntityData(type, version, datamodel, beat, length, dynamicData);
-            this.uid = RiqBeatmap.UidProvider;
-        }
+        public List<RiqHashedKey> Keys { get => keys; }
+        public Dictionary<int, object> DynamicData { get => dynamicData; }
 
-        public RiqEntity(RiqEntityData data)
-        {
-            this.guid = Guid.NewGuid();
-            this.data = data;
-            this.uid = RiqBeatmap.UidProvider;
-        }
+        [Obsolete("Use this.DatamodelHash.StringValue instead, or use the search operations in <see cref=\"RiqBeatmap2\"/>.")]
+        public string datamodel { get => DatamodelHash.StringValue; set => DatamodelHash = RiqHashedKey.CreateFrom(value); }
+        [Obsolete("Use this[\"beat\"] instead.")]
+        public double beat { get => this["beat"] is null ? 0.0d : (double)this["beat"] ; set => this["beat"] = value; }
+        [Obsolete("Use this[\"length\"] instead.")]
+        public float length { get => this["length"] is null ? 0.0f : (float)this["length"]; set => this["length"] = value; }
 
-        public RiqEntity DeepCopy()
-        {
-            RiqEntity copy = new RiqEntity(data.DeepCopy());
-            return copy;
-        }
-
-#if ENABLE_IL2CPP
         public object this[string propertyName]
-#else
-        public dynamic this[string propertyName]
-#endif
         {
             get
             {
-                switch (propertyName)
+                RiqHashedKey key = RiqHashedKey.CreateFrom(propertyName);
+                if (keys.Contains(key))
                 {
-                    case "beat":
-                        return data.beat;
-                    case "length":
-                        return data.length;
-                    case "datamodel":
-                        return data.datamodel;
-                    default:
-                        if (data.dynamicData == null)
-                            return null;
-                        if (data.dynamicData.ContainsKey(propertyName))
-                            return data.dynamicData[propertyName];
-                        else
-                        {
-                            return null;
-                        }
+                    return dynamicData[key.Hash];
                 }
+                return null;
             }
             set
             {
-                switch (propertyName)
+                RiqHashedKey key = RiqHashedKey.CreateFrom(propertyName);
+                if (keys.Contains(key))
                 {
-                    case "beat":
-                    case "length":
-                    case "datamodel":
-                        throw new Exception($"Property name {propertyName} is reserved and cannot be set.");
-                    default:
-                        if (data.dynamicData == null)
-                            data.dynamicData = new();
-                        if (data.dynamicData.ContainsKey(propertyName))
-                            data.dynamicData[propertyName] = value;
-                        else
-                            throw new Exception($"This entity does not have a property named {propertyName}! Attempted to insert value of type {value.GetType()}");
-                        break;
+                    dynamicData[key.Hash] = value;
+                }
+                else
+                {
+                    keys.Add(key);
+                    dynamicData.Add(key.Hash, value);
                 }
             }
         }
 
-#if ENABLE_IL2CPP
-        public void CreateProperty(string name, object defaultValue)
-#else
-        public void CreateProperty(string name, dynamic defaultValue)
-#endif
+        public object this[int hash]
         {
-            if (data.dynamicData == null)
-                data.dynamicData = new();
-
-            if (!data.dynamicData.ContainsKey(name))
+            get
             {
-                data.dynamicData.Add(name, defaultValue);
+                if (dynamicData.ContainsKey(hash))
+                {
+                    return dynamicData[hash];
+                }
+                return null;
             }
-            else if (data.dynamicData[name] == null)
+            set
             {
-                data.dynamicData[name] = defaultValue;
+                if (dynamicData.ContainsKey(hash))
+                {
+                    dynamicData[hash] = value;
+                }
+                else
+                {
+                    dynamicData.Add(hash, value);
+                }
             }
         }
-    }
 
-    [Serializable]
-    public struct RiqEntityData
-    {
-        public string type;
-        public int version;
-        public string datamodel;
-        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)] public double beat;
-        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)] public float length;
+        public RiqEntity(string type, string datamodel, int version)
+        {
+            this.Type = type;
+            this.DatamodelHash = RiqHashedKey.CreateFrom(datamodel);
+            this.Version = version;
 
-#if ENABLE_IL2CPP
-        public Dictionary<string, object> dynamicData;
-        public RiqEntityData(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, object> dynamicData = null)
-        {
-#else
-        public Dictionary<string, dynamic> dynamicData;
-        public RiqEntityData(string type = "", int version = 0, string datamodel = "", double beat = 0, float length = 0, Dictionary<string, dynamic> dynamicData = null)
-        {
-#endif        
-            this.type = type;
-            this.version = version;
-            this.datamodel = datamodel;
-            this.beat = beat;
-            this.length = length;
-            this.dynamicData = dynamicData ?? new();
+            this.Guid = Guid.NewGuid();
         }
 
-        public RiqEntityData DeepCopy()
+        public RiqEntity(string type, RiqHashedKey datamodel, int version)
         {
-            RiqEntityData copy = new RiqEntityData();
-            copy.type = type;
-            copy.version = version;
-            copy.beat = beat;
-            copy.length = length;
-            copy.datamodel = datamodel;
-#if ENABLE_IL2CPP
-            copy.dynamicData = new Dictionary<string, object>(dynamicData);
-#else
-            copy.dynamicData = new Dictionary<string, dynamic>(dynamicData);
-#endif
+            this.Type = type;
+            this.DatamodelHash = datamodel;
+            this.Version = version;
+            
+            this.Guid = Guid.NewGuid();
+        }
 
+        /// <summary>
+        /// Creates a deep copy of this <see cref="RiqEntity"/> object.
+        /// </summary>
+        /// <returns>A copy of the entity</returns>
+        public RiqEntity DeepCopy()
+        {
+            RiqEntity copy = new RiqEntity(Type, DatamodelHash, Version);
+            copy.dynamicData.Clear();
+            foreach (RiqHashedKey key in keys)
+            {
+                copy.CreateProperty(key, dynamicData[key.Hash]);
+            }
             return copy;
         }
 
-        public string Serialize()
+        /// <summary>
+        /// Create a new property with a default value.
+        /// </summary>
+        /// <param name="key">Key of the property</param>
+        /// <param name="defaultValue">Default value of the property</param>
+        /// <returns>A <see cref="RiqHashedKey"/> object representing the property's key</returns>
+        public RiqHashedKey CreateProperty(string key, object defaultValue)
         {
-            return JsonConvert.SerializeObject(this, Formatting.None, new JsonSerializerSettings()
+            RiqHashedKey hashkey = RiqHashedKey.CreateFrom(key);
+            return CreateProperty(hashkey, defaultValue);
+        }
+
+        /// <summary>
+        /// Create a new property with a default value.
+        /// </summary>
+        /// <param name="key">Key of the property</param>
+        /// <param name="defaultValue">Default value of the property</param>
+        /// <returns>A <see cref="RiqHashedKey"/> object representing the property's key</returns>
+        public RiqHashedKey CreateProperty(RiqHashedKey key, object defaultValue)
+        {
+            if (!keys.Contains(key))
             {
-                TypeNameHandling = TypeNameHandling.None,
-                NullValueHandling = NullValueHandling.Include,
-            });
+                keys.Add(key);
+                dynamicData.Add(key.Hash, defaultValue);
+            }
+            else if (dynamicData[key.Hash] == null)
+            {
+                dynamicData[key.Hash] = defaultValue;
+            }
+            UnityEngine.Debug.Log($"Created property {key.StringValue} (hash: {key.Hash})");
+            return key;
+        }
+
+        /// <summary>
+        /// Add a new property to the entity.
+        /// </summary>
+        /// <param name="key">Key of the property</param>
+        /// <param name="defaultValue">Default value of the property</param>
+        /// <param name="hashkey">A <see cref="RiqHashedKey"/> object representing the property's key</returns>
+        /// <returns>This <see cref="RiqEntity"/> object</returns>
+        public RiqEntity AddProperty(string key, object defaultValue, out RiqHashedKey hashkey)
+        {
+            hashkey = CreateProperty(key, defaultValue);
+            return this;
+        }
+
+        /// <summary>
+        /// Add a new property to the entity.
+        /// </summary>
+        /// <param name="key">A <see cref="RiqHashedKey"/> object representing the property's key</param>
+        /// <param name="defaultValue">Default value of the property</param>
+        /// <returns>This <see cref="RiqEntity"/> object</returns>
+        public RiqEntity AddProperty(RiqHashedKey key, object defaultValue)
+        {
+            CreateProperty(key, defaultValue);
+            return this;
+        }
+
+        /// <summary>
+        /// Tries to get a property from the entity as the specified type.
+        /// </summary>
+        /// <typeparam name="T">Type to get the property as</typeparam>
+        /// <param name="key">A <see cref="RiqHashedKey"/> object representing the property's key</param>
+        /// <param name="value">Returned value</param>
+        /// <returns>True if the property exists and can be returned as the specified type.</returns>
+        public bool TryGetProperty<T>(RiqHashedKey key, out T value)
+        {
+            return TryGetProperty(key.Hash, out value);
+        }
+
+        /// <summary>
+        /// Tries to get a property from the entity as the specified type.
+        /// </summary>
+        /// <typeparam name="T">Type to get the property as</typeparam>
+        /// <param name="hash">Name of the property to get</param>
+        /// <param name="value">Returned value</param>
+        /// <returns>True if the property exists and can be returned as the specified type.</returns>
+        public bool TryGetProperty<T>(string key, out T value)
+        {
+            RiqHashedKey hashkey = RiqHashedKey.CreateFrom(key);
+            return TryGetProperty(hashkey, out value);
+        }
+
+        /// <summary>
+        /// Tries to get a property from the entity as the specified type.
+        /// </summary>
+        /// <typeparam name="T">Type to get the property as</typeparam>
+        /// <param name="hash">Hash of the property key</param>
+        /// <param name="value">Returned value</param>
+        /// <returns>True if the property exists and can be returned as the specified type.</returns>
+        public bool TryGetProperty<T>(int hash, out T value)
+        {
+            if (dynamicData.ContainsKey(hash))
+            {
+                value = (T)Convert.ChangeType(dynamicData[hash], typeof(T));
+                return true;
+            }
+            value = default;
+            return false;
         }
     }
 }

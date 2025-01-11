@@ -1,3 +1,4 @@
+#if JUKEBOX_V0
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -180,3 +181,4 @@ namespace Jukebox.Legacy
         }
     }
 }
+#endif
