@@ -18,6 +18,7 @@ namespace Jukebox
             JObject obj = JObject.Load(reader);
 
             version = obj["version"].Value<int>();
+            if (version == 2) version = 201;
 
             if (obj.ContainsKey("origin"))
                 origin = obj["origin"].Value<string>();

@@ -17,8 +17,20 @@ namespace Jukebox
             int version = obj["version"].Value<int>();
             double offset = obj["offset"].Value<double>();
 
+            string songName;
+            if (obj.ContainsKey("songname"))
+            {
+                songName = obj["songname"].Value<string>();
+            }
+            else
+            {
+                songName = "song0";
+                if (version == 2) version = 201;
+            }
+
             RiqBeatmap beatmap = new(version);
-            beatmap.WithOffset(offset);
+            beatmap.WithOffset(offset)
+                   .WithSongName(songName);
 
             List<string> datamodels = new();
             JObject datamodelsObj = obj["models"].Value<JObject>();
@@ -58,6 +70,9 @@ namespace Jukebox
 
             writer.WritePropertyName("offset");
             writer.WriteValue(value.Offset);
+
+            writer.WritePropertyName("songname");
+            writer.WriteValue(value.SongName);
 
             List<string> datamodels = new();
             List<string> types = new();

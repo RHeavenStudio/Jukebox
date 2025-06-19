@@ -55,7 +55,7 @@ namespace Jukebox
             }
         }
 
-        public RiqMetadata(int version = 2, string origin = "Jukebox")
+        public RiqMetadata(int version = 201, string origin = "Jukebox")
         {
             Version = version;
             Origin = origin;
