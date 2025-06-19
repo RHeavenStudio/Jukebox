@@ -16,7 +16,7 @@ namespace Jukebox
 {
     public static class RiqFileHandler
     {
-        const int VERSION = 2;
+        const int VERSION = 201;
 
         static Guid? CacheID = null;
         static readonly string tempDir = Path.Combine(Application.temporaryCachePath, "RIQCache");
@@ -27,6 +27,7 @@ namespace Jukebox
         static readonly string metadataDir = Path.Combine(treeDir, ".meta");
 
 
+        static RiqBeatmap lastReadBeatmap;
         static AudioClip streamedAudioClip;
         static UnityWebRequest streamedAudioRequest;
 
@@ -140,6 +141,42 @@ namespace Jukebox
         }
 
         /// <summary>
+        /// Reads a chart from the cache, and the chart's corresponding song.
+        /// Use <see cref="Extract"/> first to extract the contents of a RIQ file.
+        /// Use <see cref="GetLoadedChart"/> to get the loaded beatmap.
+        /// Use <see cref="GetLoadedSong"/> to get the loaded song.
+        /// </summary>
+        /// <param name="index">Chart index to read</param>
+        public static IEnumerator ReadChartAndAudio(int index)
+        {
+            yield return ReadChart_Coroutine(index);
+
+            IEnumerator readAudio = ReadAudio(lastReadBeatmap.SongName);
+            while (true)
+            {
+                object current = readAudio.Current;
+                try
+                {
+                    if (readAudio.MoveNext() == false)
+                    {
+                        break;
+                    }
+                    current = readAudio.Current;
+                }
+                catch (FileNotFoundException f)
+                {
+                    Debug.LogWarning($"Chart has no music: {f.Message} {f.StackTrace}");
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"Failed to load music: {e.Message}");
+                    yield break;
+                }
+                yield return current;
+            }
+        }
+
+        /// <summary>
         /// Reads a chart from the cache.
         /// Use <see cref="Extract"/> first to extract the contents of a RIQ file. 
         /// </summary>
@@ -158,33 +195,90 @@ namespace Jukebox
             string chartJson = File.ReadAllText(chartPath);
             Debug.Log($"Jukebox loaded chart {chartPath} ({chartJson.Length} bytes)");
 
-            return JsonConvert.DeserializeObject<RiqBeatmap>(chartJson);
+            lastReadBeatmap = JsonConvert.DeserializeObject<RiqBeatmap>(chartJson);
+            return lastReadBeatmap;
+        }
+
+        /// <summary>
+        /// Coroutine
+        /// Reads a chart from the cache.
+        /// Use <see cref="Extract"/> first to extract the contents of a RIQ file. 
+        /// Use <see cref="GetLoadedChart"/> to get the loaded beatmap.
+        /// </summary>
+        /// <param name="index">Chart index to read</param>
+        /// <returns>A <see cref="RiqBeatmap"/> object</returns>
+        /// <exception cref="FileNotFoundException">Chart file not found</exception>
+        public static IEnumerator ReadChart_Coroutine(int index)
+        {
+            string chartName = $"chart{index}";
+            string chartPath = Path.Combine(chartDir, chartName + ".json");
+            if (!File.Exists(chartPath))
+            {
+                throw new FileNotFoundException($"Chart {index} not found in RIQ file");
+            }
+
+            Task<string> readTask = File.ReadAllTextAsync(chartPath);
+            WaitUntil waitUntil = new(() => readTask.IsCompleted);
+            yield return waitUntil;
+            if (readTask.Status == TaskStatus.Faulted)
+            {
+                throw readTask.Exception;
+            }
+            string chartJson = readTask.Result;
+            Debug.Log($"Jukebox loaded chart {chartPath} ({chartJson.Length} bytes)");
+            lastReadBeatmap = JsonConvert.DeserializeObject<RiqBeatmap>(chartJson);
         }
 
         /// <summary>
         /// Coroutine
         /// Uses <see cref="UnityWebRequestMultimedia"/> to load an audio clip from the cache.
         /// Use <see cref="Extract"/> first to extract the contents of a RIQ file. 
+        /// Use <see cref="GetLoadedSong"/> to get the loaded song.
         /// </summary>
         /// <param name="index">Chart index to get the audio clip for</param>
         /// <returns></returns>
         /// <exception cref="FileNotFoundException">Audio file not found</exception>
         /// <exception cref="InvalidDataException">Unknown audio format</exception>
         /// <exception cref="Exception">Error loading audio</exception>
+        [Obsolete("Use ReadAudio(string songPath) instead for more control over sharing song files.")]
         public static IEnumerator ReadAudio(int index)
         {
-            string songName = $"song{index}";
+            yield return ReadAudio($"song{index}");
+        }
+
+        /// <summary>
+        /// Coroutine
+        /// Uses <see cref="UnityWebRequestMultimedia"/> to load an audio clip from the cache.
+        /// Use <see cref="Extract"/> first to extract the contents of a RIQ file. 
+        /// Use <see cref="GetLoadedSong"/> to get the loaded song.
+        /// </summary>
+        /// <param name="songName">Name of the song file</param>
+        /// <returns></returns>
+        /// <exception cref="FileNotFoundException">Audio file not found</exception>
+        /// <exception cref="InvalidDataException">Unknown audio format</exception>
+        /// <exception cref="Exception">Error loading audio</exception>
+        public static IEnumerator ReadAudio(string songName)
+        {
             streamedAudioClip = null;
+            if (string.IsNullOrEmpty(songName) || songName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                throw new FileNotFoundException($"{songName} is an invalid song path");
+            }
+
             string[] files = Directory.GetFiles(audioDir, songName + ".*");
             if (files.Length == 0)
             {
-                throw new FileNotFoundException($"Song {index} not found in RIQ file");
+                throw new FileNotFoundException($"Song {songName} not found in RIQ file");
+            }
+            else if (files.Length > 1)
+            {
+                Debug.LogWarning($"Multiple songs with name {songName} found, first found entry will be used.");
             }
 
             AudioType audioType = AudioFormats.GetAudioType(files[0], out _);
             if (audioType == AudioType.UNKNOWN)
             {
-                throw new InvalidDataException($"Unknown audio format for song {index} (at {files[0]})");
+                throw new InvalidDataException($"Unknown audio format for song {songName} (at {files[0]})");
             }
 
             string uri = "file://" + files[0];
@@ -211,7 +305,16 @@ namespace Jukebox
         }
 
         /// <summary>
-        /// Gets the audio clip that was loaded by <see cref="ReadAudio"/>.
+        /// Gets the beatmap that was loaded by <see cref="ReadChartAndAudio"/>.
+        /// </summary>
+        /// <returns>Loaded beatmap</returns>
+        public static RiqBeatmap GetLoadedChart()
+        {
+            return lastReadBeatmap;
+        }
+
+        /// <summary>
+        /// Gets the audio clip that was loaded by <see cref="ReadAudio"/> or <see cref="ReadChartAndAudio"/>.
         /// </summary>
         /// <returns>Loaded audio clip</returns>
         public static AudioClip GetLoadedSong()
@@ -265,6 +368,42 @@ namespace Jukebox
         /// <summary>
         /// Copies an audio file to the cache.
         /// </summary>
+        /// <param name="chart">Chart to copy an audio file for</param>
+        /// <param name="audioPath">Path to the audio file</param>
+        /// <exception cref="ArgumentNullException">path to the audio file is null or empty</exception>
+        /// <exception cref="FileNotFoundException">audio file does not exist at provided path</exception>
+        /// <exception cref="IOException">RIQ cache is locked</exception>
+        /// <exception cref="System.IO.InvalidDataException">audio file is of unknown type</exception>
+        public static string WriteAudio(RiqBeatmap chart, string audioPath, bool setSongName = true)
+        {
+            if (audioPath == string.Empty || audioPath == null) throw new ArgumentNullException("audioPath", "audioPath cannot be null or empty");
+            if (!File.Exists(audioPath)) throw new FileNotFoundException("audioPath", $"audio file does not exist at path {audioPath}");
+            if (IsCacheLocked()) throw new IOException("RIQ cache is locked, cannot write audio");
+            // check if songPath is a valid audio file
+            if (AudioFormats.GetAudioType(audioPath, out _) == AudioType.UNKNOWN)
+            {
+                // if no user processing is defined on unknown file type, or user processing returns unknown filetype, throw exception
+                throw new System.IO.InvalidDataException($"file at path {audioPath} is of unknown type");
+            }
+
+            if (!Directory.Exists(audioDir))
+                Directory.CreateDirectory(audioDir);
+
+            DeleteOldAudio(chart);
+            string songName = Path.GetFileNameWithoutExtension(audioPath);
+            if (setSongName)
+            {
+                chart.WithSongName(songName);
+            }
+
+            string songPath = Path.Combine(audioDir, $"{songName}{Path.GetExtension(audioPath)}");
+            File.Copy(audioPath, songPath, true);
+            return songName;
+        }
+
+        /// <summary>
+        /// Copies an audio file to the cache.
+        /// </summary>
         /// <param name="index">Index of the chart to copy an audio file for</param>
         /// <param name="audioPath">Path to the audio file</param>
         /// <exception cref="ArgumentNullException">path to the audio file is null or empty</exception>
@@ -272,6 +411,7 @@ namespace Jukebox
         /// <exception cref="IOException">RIQ cache is locked</exception>
         /// <exception cref="InvalidOperationException">chart index is invalid</exception>
         /// <exception cref="System.IO.InvalidDataException">audio file is of unknown type</exception>
+        [Obsolete("Use WriteAudio and pass an RiqBeatmap instead of a song index")]
         public static void WriteAudio(int index, string audioPath)
         {
             if (audioPath == string.Empty || audioPath == null) throw new ArgumentNullException("audioPath", "audioPath cannot be null or empty");
@@ -292,6 +432,21 @@ namespace Jukebox
 
             string songPath = Path.Combine(audioDir, $"song{index}{Path.GetExtension(audioPath)}");
             File.Copy(audioPath, songPath, true);
+        }
+
+        static void DeleteOldAudio(RiqBeatmap chart)
+        {
+            string songName = chart.SongName;
+            if (string.IsNullOrEmpty(songName)) return;
+
+            string[] files = Directory.GetFiles(audioDir, songName + ".*");
+            if (files.Length != 0)
+            {
+                foreach (string file in files)
+                {
+                    File.Delete(file);
+                }
+            }
         }
 
         static void DeleteOldAudio(int index)
@@ -474,7 +629,7 @@ namespace Jukebox
             if (File.Exists(oldSongPath))
             {
                 // this keeps the .bin extension but the audio reader will still try to determine type based on content
-                WriteAudio(0, oldSongPath);
+                WriteAudio(beatmap, oldSongPath);
                 File.Delete(oldSongPath);
             }
 

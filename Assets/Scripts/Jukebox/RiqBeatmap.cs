@@ -11,11 +11,13 @@ namespace Jukebox
 
         public int Version { get => version; }
         public double Offset { get => offset; }
+        public string SongName { get => songName; }
 
         double offset;
         int version;
+        string songName;
 
-        public RiqBeatmap(int version = 2)
+        public RiqBeatmap(int version = 201)
         {
             this.version = version;
         }
@@ -86,6 +88,17 @@ namespace Jukebox
         public RiqBeatmap WithOffset(double offset)
         {
             this.offset = offset;
+            return this;
+        }
+
+        /// <summary>
+        /// Set the song assigned to this beatmap.
+        /// </summary>
+        /// <param name="songName">Song name (normally provided when importing)</param>
+        /// <returns>This <see cref="RiqBeatmap"/> object</returns>
+        public RiqBeatmap WithSongName(string songName)
+        {
+            this.songName = songName;
             return this;
         }
 

@@ -158,60 +158,73 @@ namespace Jukebox.Tests
             // DrawWaveformChunk(currentChunkTime);
         }
 
+        IEnumerator LoadChartAndMusic(int idx)
+        {
+            yield return RiqFileHandler.ReadChartAndAudio(idx);
+
+            beatmap2 = RiqFileHandler.GetLoadedChart();
+            audioSource.clip = RiqFileHandler.GetLoadedSong();
+
+            audioLength = audioSource.clip.length;
+            musicSlider.value = 0;
+            songProgressSeconds.text = $"0.000 / {audioLength:0.000}";
+            currentChunkTime = 0f;
+        }
+
         // private void DrawWaveformChunk(float startTime)
         // {
         //     Vector2 imgSize = waveformImg.GetPixelAdjustedRect().size;
         //     StartCoroutine(PaintWaveformSpectrum(startTime, 1f, Mathf.RoundToInt(imgSize.x), Mathf.RoundToInt(imgSize.y), Color.yellow));
         // }
 
-        // https://answers.unity.com/questions/1603418/how-to-create-waveform-texture-from-audioclip.html
-        // and
-        // https://answers.unity.com/questions/699595/how-to-generate-waveform-from-audioclip.html
-        // with modifications to only render chunks of audio
-        // public IEnumerator PaintWaveformSpectrum(float startTime, float length, int width, int height, Color col) {
-        //     AudioClip audio = RiqFileHandler.StreamedAudioClip;
-        //     if (audio == null) yield break;
+            // https://answers.unity.com/questions/1603418/how-to-create-waveform-texture-from-audioclip.html
+            // and
+            // https://answers.unity.com/questions/699595/how-to-generate-waveform-from-audioclip.html
+            // with modifications to only render chunks of audio
+            // public IEnumerator PaintWaveformSpectrum(float startTime, float length, int width, int height, Color col) {
+            //     AudioClip audio = RiqFileHandler.StreamedAudioClip;
+            //     if (audio == null) yield break;
 
-        //     int sampleRate = audio.frequency;
-        //     int channels = audio.channels;
-        //     int numSamples = Mathf.RoundToInt(length * sampleRate);
+            //     int sampleRate = audio.frequency;
+            //     int channels = audio.channels;
+            //     int numSamples = Mathf.RoundToInt(length * sampleRate);
 
-        //     Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            //     Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
 
-        //     yield return RiqFileHandler.GetSongSamples(Mathf.RoundToInt(startTime * sampleRate), numSamples);
-        //     float[] samples = RiqFileHandler.LastSongChunk;
-        //     if (samples == null) yield break;
+            //     yield return RiqFileHandler.GetSongSamples(Mathf.RoundToInt(startTime * sampleRate), numSamples);
+            //     float[] samples = RiqFileHandler.LastSongChunk;
+            //     if (samples == null) yield break;
 
-        //     float[] waveform = new float[width];
-        //     float packSize = ((float)samples.Length / (float)width);
-        //     int waveIdx = 0;
-        //     for (float i = 0; Mathf.RoundToInt(i) < samples.Length && waveIdx < waveform.Length; i += packSize)
-        //     {
-        //         waveform[waveIdx] = Mathf.Abs(samples[Mathf.RoundToInt(i)]);
-        //         waveIdx++;
-        //     }
-        
-        //     for (int x = 0; x < width; x++) {
-        //         for (int y = 0; y < height; y++) {
-        //             tex.SetPixel(x, y, Color.black);
-        //         }
-        //     }
+            //     float[] waveform = new float[width];
+            //     float packSize = ((float)samples.Length / (float)width);
+            //     int waveIdx = 0;
+            //     for (float i = 0; Mathf.RoundToInt(i) < samples.Length && waveIdx < waveform.Length; i += packSize)
+            //     {
+            //         waveform[waveIdx] = Mathf.Abs(samples[Mathf.RoundToInt(i)]);
+            //         waveIdx++;
+            //     }
 
-        //     waveformImg.texture = tex;
-        //     for (int x = 0; x < waveform.Length; x++) {
-        //         for (int y = 0; y <= waveform[x] * ((float)height * .75f); y++) {
-        //             tex.SetPixel(x, ( height / 2 ) + y, col);
-        //             tex.SetPixel(x, ( height / 2 ) - y, col);
-        //         }
-        //         // tex.Apply();
-        //         // yield return null;
-        //     }
-        //     tex.Apply();
-        // }
+            //     for (int x = 0; x < width; x++) {
+            //         for (int y = 0; y < height; y++) {
+            //             tex.SetPixel(x, y, Color.black);
+            //         }
+            //     }
+
+            //     waveformImg.texture = tex;
+            //     for (int x = 0; x < waveform.Length; x++) {
+            //         for (int y = 0; y <= waveform[x] * ((float)height * .75f); y++) {
+            //             tex.SetPixel(x, ( height / 2 ) + y, col);
+            //             tex.SetPixel(x, ( height / 2 ) - y, col);
+            //         }
+            //         // tex.Apply();
+            //         // yield return null;
+            //     }
+            //     tex.Apply();
+            // }
 
         public void OnImportPressed()
         {
-            var extensions = new [] {
+            var extensions = new[] {
                 new ExtensionFilter("RIQ-compatible", "riq"),
             };
             var paths = StandaloneFileBrowser.OpenFilePanel("Open File", "", extensions, false);
@@ -233,8 +246,7 @@ namespace Jukebox.Tests
                 }
 
                 metadata2 = RiqFileHandler.ReadMetadata();
-                beatmap2 = RiqFileHandler.ReadChart(0);
-                StartCoroutine(LoadMusic2(0));
+                StartCoroutine(LoadChartAndMusic(0));
 
                 statusTxt.text = "Imported RIQ successfully!";
                 return;
@@ -329,7 +341,7 @@ namespace Jukebox.Tests
             try
             {
                 if (paths.Length == 0) return;
-                RiqFileHandler.WriteAudio(0, paths[0]);
+                RiqFileHandler.WriteAudio(beatmap2, paths[0]);
                 StartCoroutine(LoadMusic2(0));
                 return;
             }
@@ -387,6 +399,7 @@ namespace Jukebox.Tests
             try
             {
                 RiqFileHandler.WriteMetadata(metadata2);
+                RiqFileHandler.WriteChart(0, beatmap2);
                 RiqFileHandler.Pack(path);
                 statusTxt.text = "Packed RIQ successfully!";
                 return;
