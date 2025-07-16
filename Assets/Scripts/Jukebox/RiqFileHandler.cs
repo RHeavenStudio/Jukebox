@@ -602,7 +602,7 @@ namespace Jukebox
             }
 
             RiqBeatmap beatmap = new(VERSION);
-            beatmap.WithOffset(oldBeatmap.data.offset);
+            beatmap.WithOffset(oldBeatmap.data.offset).WithSongName("song");
             foreach (OldRiqEntity oldEntity in oldBeatmap.data.entities)
             {
                 RiqEntity entity = ConvertOldEntity(oldEntity);
