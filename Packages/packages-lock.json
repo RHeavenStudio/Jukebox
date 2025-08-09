@@ -229,11 +229,11 @@
       "url": "https://packages.unity.com"
     },
     "jillejr.newtonsoft.json-for-unity.converters": {
-      "version": "1.6.3",
+      "version": "https://github.com/jilleJr/Newtonsoft.Json-for-Unity.Converters.git#upm",
       "depth": 0,
-      "source": "registry",
+      "source": "git",
       "dependencies": {},
-      "url": "https://npm.cloudsmith.io/jillejr/newtonsoft-json-for-unity"
+      "hash": "464cdbbabb67661751cb73fd39c4e99e5b5eedb0"
     },
     "com.unity.modules.ai": {
       "version": "1.0.0",
