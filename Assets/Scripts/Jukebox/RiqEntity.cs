@@ -50,7 +50,7 @@ namespace Jukebox
                 else
                 {
                     keys.Add(key);
-                    dynamicData.Add(key.Hash, value);
+                    this[key.Hash] = value;
                 }
             }
         }
