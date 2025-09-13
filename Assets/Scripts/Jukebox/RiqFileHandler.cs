@@ -597,8 +597,9 @@ namespace Jukebox
             RiqMetadata metadata = new(VERSION, oldBeatmap.data.riqOrigin);
             foreach (KeyValuePair<string, object> kvp in oldBeatmap.data.properties)
             {
-                RiqHashedKey key = RiqHashedKey.CreateFrom(kvp.Key);
-                metadata.CreateEntry(key.StringValue, kvp.Value);
+                Debug.Log($"Converting metadata key {kvp.Key}, value {kvp.Value}");
+                metadata.CreateEntry(kvp.Key, kvp.Value);
+                Debug.Log($"Added entry {metadata[kvp.Key]} as {kvp.Key}");
             }
 
             RiqBeatmap beatmap = new(VERSION);

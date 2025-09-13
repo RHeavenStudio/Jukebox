@@ -71,6 +71,7 @@ namespace Jukebox
         {
             RiqHashedKey hashedKey = RiqHashedKey.CreateFrom(key);
             metadata.Add(hashedKey.Hash, value);
+            keys.Add(hashedKey);
             return hashedKey;
         }
 
