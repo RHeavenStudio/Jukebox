@@ -28,12 +28,20 @@ namespace Jukebox
 
 
         static RiqBeatmap lastReadBeatmap;
-        static AudioClip streamedAudioClip;
-        static UnityWebRequest streamedAudioRequest;
+        static AudioClip currentAudioClip;
+        static UnityWebRequest audioReadRequest;
 
         public static string CachePath => treeDir;
+        public static string AudioPath => audioDir;
+        public static string ChartPath => chartDir;
+        public static string MetadataPath => metadataDir;
+        public static string ResourcesPath => resourcesDir;
 
         static RiqMetadata currentMetadata;
+
+        #region File Handler Hints
+        public static AudioClipLoadType AudioLoadTypeHint = AudioClipLoadType.Streaming;
+        #endregion
 
         #region Read
         /// <summary>
@@ -240,7 +248,7 @@ namespace Jukebox
         /// <exception cref="FileNotFoundException">Audio file not found</exception>
         /// <exception cref="InvalidDataException">Unknown audio format</exception>
         /// <exception cref="Exception">Error loading audio</exception>
-        [Obsolete("Use ReadAudio(string songPath) instead for more control over sharing song files.")]
+        [Obsolete("Use ReadAudio(string songPath) instead for more control regarding sharing song files between charts.")]
         public static IEnumerator ReadAudio(int index)
         {
             yield return ReadAudio($"song{index}");
@@ -259,7 +267,7 @@ namespace Jukebox
         /// <exception cref="Exception">Error loading audio</exception>
         public static IEnumerator ReadAudio(string songName)
         {
-            streamedAudioClip = null;
+            currentAudioClip = null;
             if (string.IsNullOrEmpty(songName) || songName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
             {
                 throw new FileNotFoundException($"{songName} is an invalid song path");
@@ -282,26 +290,56 @@ namespace Jukebox
             }
 
             string uri = "file://" + files[0];
-            streamedAudioRequest = UnityWebRequestMultimedia.GetAudioClip(uri, audioType);
-            ((DownloadHandlerAudioClip)streamedAudioRequest.downloadHandler).compressed = false;
-            ((DownloadHandlerAudioClip)streamedAudioRequest.downloadHandler).streamAudio = true;
-
-            streamedAudioRequest.SendWebRequest();
-            while (!(streamedAudioRequest.result == UnityWebRequest.Result.ConnectionError) && streamedAudioRequest.downloadedBytes < 4096)
+            audioReadRequest = UnityWebRequestMultimedia.GetAudioClip(uri, audioType);
+            bool useStreamingPath = AudioLoadTypeHint == AudioClipLoadType.Streaming;
+            switch (AudioLoadTypeHint)
             {
-                yield return null;
+                case AudioClipLoadType.DecompressOnLoad:
+                    ((DownloadHandlerAudioClip)audioReadRequest.downloadHandler).compressed = false;
+                    ((DownloadHandlerAudioClip)audioReadRequest.downloadHandler).streamAudio = false;
+                    break;
+                case AudioClipLoadType.CompressedInMemory:
+                    ((DownloadHandlerAudioClip)audioReadRequest.downloadHandler).compressed = false;
+                    ((DownloadHandlerAudioClip)audioReadRequest.downloadHandler).streamAudio = false;
+                    break;
+                default:
+                    ((DownloadHandlerAudioClip)audioReadRequest.downloadHandler).compressed = false;
+                    ((DownloadHandlerAudioClip)audioReadRequest.downloadHandler).streamAudio = true;
+                    break;
             }
 
-            if (streamedAudioRequest.result == UnityWebRequest.Result.ConnectionError)
+            if (useStreamingPath)
             {
-                throw new Exception($"Error loading song {uri}: {streamedAudioRequest.error}");
+                // don't download entire audio file when streaming
+                audioReadRequest.SendWebRequest();
+                while (!(audioReadRequest.result == UnityWebRequest.Result.ConnectionError) && audioReadRequest.downloadedBytes < 4096)
+                {
+                    yield return null;
+                }
+            }
+            else
+            {
+                yield return audioReadRequest.SendWebRequest();
+            }
+            if (audioReadRequest.result == UnityWebRequest.Result.ConnectionError)
+            {
+                throw new Exception($"Error loading song {uri}: {audioReadRequest.error}");
             }
 
-            Debug.Log($"Jukebox loaded song {uri} ({streamedAudioRequest.downloadedBytes} bytes)");
-            streamedAudioClip = ((DownloadHandlerAudioClip)streamedAudioRequest.downloadHandler).audioClip;
 
-            streamedAudioRequest.Dispose();
-            streamedAudioRequest = null;
+            if (useStreamingPath)
+            {
+                Debug.Log($"Jukebox streaming song {uri} ({audioReadRequest.downloadedBytes} bytes)");
+                currentAudioClip = ((DownloadHandlerAudioClip)audioReadRequest.downloadHandler).audioClip;
+            }
+            else
+            {
+                Debug.Log($"Jukebox downloaded song {uri} ({audioReadRequest.downloadedBytes} bytes)");
+                currentAudioClip = DownloadHandlerAudioClip.GetContent(audioReadRequest);
+            }
+
+            audioReadRequest.Dispose();
+            audioReadRequest = null;
         }
 
         /// <summary>
@@ -319,7 +357,33 @@ namespace Jukebox
         /// <returns>Loaded audio clip</returns>
         public static AudioClip GetLoadedSong()
         {
-            return streamedAudioClip;
+            return currentAudioClip;
+        }
+
+        /// <summary>
+        /// Creates a file path to a chart's song.
+        /// </summary>
+        /// <param name="chart">The chart to get the audio path for</param>
+        /// <returns>Possible path to the audio file for the chart. Returns the first found file if multiple are found.</returns>
+        /// <exception cref="ArgumentNullException">Provided chart is null</exception>
+        /// <exception cref="FileNotFoundException">No audio file found for the chart</exception>
+        public static string GetAudioPathForChart(RiqBeatmap chart)
+        {
+            if (chart is null) throw new ArgumentNullException("chart", "chart cannot be null");
+            string songName = chart.SongName;
+            if (string.IsNullOrEmpty(songName)) throw new FileNotFoundException("chart.SongName", "chart.SongName cannot be null or empty");
+
+            string[] files = Directory.GetFiles(audioDir, songName + ".*");
+            if (files.Length == 0)
+            {
+                throw new FileNotFoundException($"Song {songName} not found in RIQ file");
+            }
+            else if (files.Length > 1)
+            {
+                Debug.LogWarning($"Multiple songs with name {songName} found, first found entry will be used.");
+            }
+
+            return files[0];
         }
         #endregion
 
