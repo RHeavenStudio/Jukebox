@@ -1,6 +1,6 @@
 {
   "name": "com.rheavenstudio.jukebox",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "displayName": "Jukebox",
   "description": "Utility to parse and create RIQ-format rhythm game chart files.",
   "unity": "2020.1",
@@ -8,8 +8,7 @@
   "changelogUrl": "https://github.com/RHeavenStudio/Jukebox/commits/main",
   "licensesUrl": "https://github.com/RHeavenStudio/Jukebox/blob/main/LICENSE",
   "dependencies": {
-    "com.unity.nuget.newtonsoft-json": "3.2.1",
-    "jillejr.newtonsoft.json-for-unity.converters": "1.6.3"
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
   },
   "author": {
     "name": "RHeavenStudio",
