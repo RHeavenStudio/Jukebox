@@ -1,9 +1,9 @@
 {
   "name": "com.rheavenstudio.jukebox",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "displayName": "Jukebox",
   "description": "Utility to parse and create RIQ-format rhythm game chart files.",
-  "unity": "2020.1",
+  "unity": "2022.3",
   "documentationUrl": "https://github.com/RHeavenStudio/Jukebox",
   "changelogUrl": "https://github.com/RHeavenStudio/Jukebox/commits/main",
   "licensesUrl": "https://github.com/RHeavenStudio/Jukebox/blob/main/LICENSE",

@@ -1,0 +1,4 @@
+﻿<Solution>
+  <Project Path="RHeavenStudio.Jukebox.csproj" />
+  <Project Path="Assembly-CSharp.csproj" />
+</Solution>

@@ -31,6 +31,15 @@ namespace Jukebox
         static AudioClip currentAudioClip;
         static UnityWebRequest audioReadRequest;
 
+        static UnityWebRequest audioResourceReadRequest;
+        static AudioClip currentResourcesAudioClip;
+
+        static UnityWebRequest textureResourceReadRequest;
+        static Texture2D currentResourcesTexture;
+
+        static AssetBundleCreateRequest assetBundleResourceReadRequest;
+        static AssetBundle currentResourcesAssetBundle;
+
         public static string CachePath => treeDir;
         public static string AudioPath => audioDir;
         public static string ChartPath => chartDir;
@@ -216,6 +225,9 @@ namespace Jukebox
         /// <param name="index">Chart index to read</param>
         /// <returns>A <see cref="RiqBeatmap"/> object</returns>
         /// <exception cref="FileNotFoundException">Chart file not found</exception>
+        /// <exception cref="Exception">Error reading chart</exception>
+        static Task<string> readTask;
+        static WaitUntil waitUntil = new(() => readTask.IsCompleted);
         public static IEnumerator ReadChart_Coroutine(int index)
         {
             string chartName = $"chart{index}";
@@ -225,16 +237,23 @@ namespace Jukebox
                 throw new FileNotFoundException($"Chart {index} not found in RIQ file");
             }
 
-            Task<string> readTask = File.ReadAllTextAsync(chartPath);
-            WaitUntil waitUntil = new(() => readTask.IsCompleted);
+            waitUntil.Reset();
+            readTask = File.ReadAllTextAsync(chartPath);
             yield return waitUntil;
             if (readTask.Status == TaskStatus.Faulted)
             {
+                readTask.Dispose();
+                readTask = null;
+                waitUntil.Reset();
                 throw readTask.Exception;
             }
             string chartJson = readTask.Result;
             Debug.Log($"Jukebox loaded chart {chartPath} ({chartJson.Length} bytes)");
             lastReadBeatmap = JsonConvert.DeserializeObject<RiqBeatmap>(chartJson);
+
+            readTask.Dispose();
+            readTask = null;
+            waitUntil.Reset();
         }
 
         /// <summary>
@@ -323,6 +342,9 @@ namespace Jukebox
             }
             if (audioReadRequest.result == UnityWebRequest.Result.ConnectionError)
             {
+                audioReadRequest.Dispose();
+                audioReadRequest = null;
+
                 throw new Exception($"Error loading song {uri}: {audioReadRequest.error}");
             }
 
@@ -385,6 +407,217 @@ namespace Jukebox
 
             return files[0];
         }
+
+        /// <summary>
+        /// Coroutine
+        /// Uses <see cref="UnityWebRequestMultimedia"/> to load an audio clip from the resources path in the RIQ cache.
+        /// </summary>
+        /// <param name="resourcePath">path within the RIQ's resources to get the audio from</param>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="FileNotFoundException"></exception>
+        /// <exception cref="Exception"></exception>
+        public static IEnumerator ResourcesGetAudioClip(string resourcePath)
+        {
+            if (audioResourceReadRequest != null)
+            {
+                throw new InvalidOperationException("An Audio Resource read request is already in progress. Wait for the previous request to finish before starting a new one.");
+            }
+
+            audioResourceReadRequest = ResourcesStartGetAudioClip(resourcePath);
+            yield return audioResourceReadRequest.SendWebRequest();
+            if (audioResourceReadRequest.result == UnityWebRequest.Result.ConnectionError)
+            {
+                audioResourceReadRequest.Dispose();
+                audioResourceReadRequest = null;
+
+                throw new Exception($"Error loading resource {audioResourceReadRequest.url}: {audioResourceReadRequest.error}");
+            }
+
+            Debug.Log($"Jukebox downloaded Audio Resource {audioResourceReadRequest.url} ({audioResourceReadRequest.downloadedBytes} bytes)");
+            currentResourcesAudioClip = DownloadHandlerAudioClip.GetContent(audioResourceReadRequest);
+
+            audioResourceReadRequest.Dispose();
+            audioResourceReadRequest = null;
+        }
+
+        /// <summary>
+        /// Gets the audio clip that was loaded by <see cref="ResourcesGetAudioClip"/>.
+        /// </summary>
+        public static AudioClip GetLoadedAudioResource()
+        {
+            return currentResourcesAudioClip;
+        }
+
+        /// <summary>
+        /// longhand version of <see cref="ResourcesGetAudioClip(string)"/> that allows manual management of the resulting <see cref="UnityWebRequest"/> object.
+        /// </summary>
+        /// <param name="resourcePath"></param>
+        /// <returns></returns>
+        /// <exception cref="FileNotFoundException"></exception>
+        /// <exception cref="InvalidDataException"></exception>
+        public static UnityWebRequest ResourcesStartGetAudioClip(string resourcePath)
+        {
+            if (string.IsNullOrEmpty(resourcePath) || resourcePath.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                throw new FileNotFoundException($"{resourcePath} is an invalid resource path");
+            }
+
+            string[] files = Directory.GetFiles(audioDir, resourcePath + ".*");
+            if (files.Length == 0)
+            {
+                throw new FileNotFoundException($"Audio resource {resourcePath} not found in RIQ file's resources");
+            }
+            else if (files.Length > 1)
+            {
+                Debug.LogWarning($"Multiple audio resources with name {resourcePath} found, first found entry will be used.");
+            }
+
+            AudioType audioType = AudioFormats.GetAudioType(files[0], out _);
+            if (audioType == AudioType.UNKNOWN)
+            {
+                throw new InvalidDataException($"Unknown audio format for song {resourcePath} (at {files[0]})");
+            }
+
+            return UnityWebRequestMultimedia.GetAudioClip("file://" + files[0], audioType);
+        }
+
+        /// <summary>
+        /// Coroutine
+        /// Uses <see cref="UnityWebRequestTexture"/> to load a texture from the resources path in the RIQ cache.
+        /// </summary>
+        /// <param name="resourcePath">path within the RIQ's resources to get the texture from</param>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="FileNotFoundException"></exception>
+        /// <exception cref="Exception"></exception>
+        public static IEnumerator ResourcesGetTexture(string resourcePath)
+        {
+            if (textureResourceReadRequest != null)
+            {
+                throw new InvalidOperationException("A Texture Resource read request is already in progress. Wait for the previous request to finish before starting a new one.");
+            }
+
+            textureResourceReadRequest =ResourcesStartGetTexture(resourcePath);
+            yield return textureResourceReadRequest.SendWebRequest();
+            if (textureResourceReadRequest.result == UnityWebRequest.Result.ConnectionError)
+            {
+                textureResourceReadRequest.Dispose();
+                textureResourceReadRequest = null;
+
+                throw new Exception($"Error loading resource {textureResourceReadRequest.url}: {textureResourceReadRequest.error}");
+            }
+
+            Debug.Log($"Jukebox downloaded Texture Resource {textureResourceReadRequest.url} ({textureResourceReadRequest.downloadedBytes} bytes)");
+            currentResourcesTexture = DownloadHandlerTexture.GetContent(textureResourceReadRequest);
+
+            textureResourceReadRequest.Dispose();
+            textureResourceReadRequest = null;
+        }
+
+        /// <summary>
+        /// Gets the texture that was loaded by <see cref="ResourcesGetTexture"/>.
+        /// </summary>
+        /// <returns>The loaded texture, or null if no texture has been loaded.</returns>
+        public static Texture2D GetLoadedTexture()
+        {
+            return currentResourcesTexture;
+        }
+
+        /// <summary>
+        /// longhand version of <see cref="ResourcesGetTexture(string)"/> that allows manual management of the resulting <see cref="UnityWebRequest"/> object.
+        /// </summary>
+        /// <param name="resourcePath"></param>
+        /// <returns></returns>
+        /// <exception cref="FileNotFoundException"></exception>
+        public static UnityWebRequest ResourcesStartGetTexture(string resourcePath)
+        {
+            if (string.IsNullOrEmpty(resourcePath) || resourcePath.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                throw new FileNotFoundException($"{resourcePath} is an invalid resource path");
+            }
+
+            string[] files = Directory.GetFiles(audioDir, resourcePath + ".*");
+            if (files.Length == 0)
+            {
+                throw new FileNotFoundException($"Texture resource {resourcePath} not found in RIQ file's resources");
+            }
+            else if (files.Length > 1)
+            {
+                Debug.LogWarning($"Multiple texture resources with name {resourcePath} found, first found entry will be used.");
+            }
+
+            return UnityWebRequestTexture.GetTexture("file://" + files[0]);
+        }
+
+        /// <summary>
+        /// Coroutine 
+        /// Uses <see cref="AssetBundleCreateRequest"/> to load an AssetBundle from the resources path in the RIQ cache.
+        /// </summary>
+        /// <param name="resourcePath">path within the RIQ's resources to get the AssetBundle from</param>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="FileNotFoundException"></exception>
+        /// <exception cref="Exception"></exception>
+        public static IEnumerator ResourcesGetAssetBundle(string resourcePath)
+        {
+            if (assetBundleResourceReadRequest != null)
+            {
+                throw new InvalidOperationException("An AssetBundle Resource read request is already in progress. Wait for the previous request to finish before starting a new one.");
+            }
+
+            assetBundleResourceReadRequest = ResourcesStartGetAssetBundle(resourcePath);
+
+            yield return assetBundleResourceReadRequest;
+            AssetBundle bundle = assetBundleResourceReadRequest.assetBundle;
+            if (bundle == null)
+            {
+                assetBundleResourceReadRequest = null;
+
+                throw new Exception($"Error loading resource {resourcePath}: AssetBundle is null");
+            }
+
+            Debug.Log($"Jukebox loaded AssetBundle Resource {resourcePath} ({(assetBundleResourceReadRequest.progress * 100f):F2}% complete)");
+            currentResourcesAssetBundle = bundle;
+
+            assetBundleResourceReadRequest = null;
+        }
+
+        /// <summary>
+        /// Gets the AssetBundle that was loaded by <see cref="ResourcesGetAssetBundle"/>.
+        /// AssetBundles are not unloaded automatically, and need to be unloaded using <see cref="AssetBundle.Unload(bool)"/>.
+        /// </summary>
+        /// <returns></returns>
+        public static AssetBundle GetLoadedAssetBundle()
+        {
+            return currentResourcesAssetBundle;
+        }
+
+        /// <summary>
+        /// longhand version of <see cref="ResourcesGetAssetBundle(string)"/> that allows manual management of the resulting <see cref="AssetBundleCreateRequest"/> object.
+        /// </summary>
+        /// <param name="resourcePath"></param>
+        /// <returns></returns>
+        /// <exception cref="FileNotFoundException"></exception>
+        public static AssetBundleCreateRequest ResourcesStartGetAssetBundle(string resourcePath)
+        {
+            if (string.IsNullOrEmpty(resourcePath) || resourcePath.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                throw new FileNotFoundException($"{resourcePath} is an invalid resource path");
+            }
+
+            string[] files = Directory.GetFiles(audioDir, resourcePath + ".*");
+            if (files.Length == 0)
+            {
+                throw new FileNotFoundException($"AssetBundle resource {resourcePath} not found in RIQ file's resources");
+            }
+            else if (files.Length > 1)
+            {
+                Debug.LogWarning($"Multiple AssetBundle resources with name {resourcePath} found, first found entry will be used.");
+            }
+
+            return AssetBundle.LoadFromFileAsync(files[0]);
+        }
         #endregion
 
         #region Write
@@ -440,8 +673,12 @@ namespace Jukebox
         /// <exception cref="System.IO.InvalidDataException">audio file is of unknown type</exception>
         public static string WriteAudio(RiqBeatmap chart, string audioPath, bool setSongName = true)
         {
-            if (audioPath == string.Empty || audioPath == null) throw new ArgumentNullException("audioPath", "audioPath cannot be null or empty");
+            if (string.IsNullOrEmpty(audioPath) || audioPath.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                throw new ArgumentNullException("audioPath", "audioPath is an invalid path");
+            }
             if (!File.Exists(audioPath)) throw new FileNotFoundException("audioPath", $"audio file does not exist at path {audioPath}");
+
             if (IsCacheLocked()) throw new IOException("RIQ cache is locked, cannot write audio");
             // check if songPath is a valid audio file
             if (AudioFormats.GetAudioType(audioPath, out _) == AudioType.UNKNOWN)
@@ -478,10 +715,15 @@ namespace Jukebox
         [Obsolete("Use WriteAudio and pass an RiqBeatmap instead of a song index")]
         public static void WriteAudio(int index, string audioPath)
         {
-            if (audioPath == string.Empty || audioPath == null) throw new ArgumentNullException("audioPath", "audioPath cannot be null or empty");
+            if (string.IsNullOrEmpty(audioPath) || audioPath.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                throw new ArgumentNullException("audioPath", "audioPath is an invalid path");
+            }
             if (!File.Exists(audioPath)) throw new FileNotFoundException("audioPath", $"audio file does not exist at path {audioPath}");
+
             if (IsCacheLocked()) throw new IOException("RIQ cache is locked, cannot write audio");
             if (index < 0) throw new InvalidOperationException("audio index must be greater than 0");
+
             // check if songPath is a valid audio file
             if (AudioFormats.GetAudioType(audioPath, out _) == AudioType.UNKNOWN)
             {
@@ -524,6 +766,41 @@ namespace Jukebox
                     File.Delete(file);
                 }
             }
+        }
+
+        /// <summary>
+        /// Copies a file from the filesystem into the RIQ cache's resources folder.
+        /// Any file can be copied but Jukebox only provides native methods for Audio, Textures, and AssetBundles
+        /// </summary>
+        /// <param name="inputFilePath">filepath of the file to copy into the RIQ's resources</param>
+        /// <param name="savedResourcePath">path within the resources directory to copy the file to</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="FileNotFoundException"></exception>
+        /// <exception cref="IOException"></exception>
+        public static void AddToResources(string inputFilePath, string savedResourcePath)
+        {
+            if (string.IsNullOrEmpty(inputFilePath) || inputFilePath.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                throw new ArgumentNullException("inputFilePath", "inputFilePath is an invalid path");
+            }
+            if (!File.Exists(inputFilePath)) throw new FileNotFoundException("inputFilePath", $"file does not exist at path {inputFilePath}");
+
+            if (string.IsNullOrEmpty(savedResourcePath) || savedResourcePath.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                throw new ArgumentNullException("savedResourcePath", "savedResourcePath is an invalid path");
+            }
+
+            if (IsCacheLocked()) throw new IOException("RIQ cache is locked, cannot write resource");
+
+            if (!Directory.Exists(resourcesDir))
+                Directory.CreateDirectory(resourcesDir);
+
+            string resourcePath = Path.Combine(resourcesDir, savedResourcePath);
+            string resourceDir = Path.GetDirectoryName(resourcePath);
+            if (!Directory.Exists(resourceDir))
+                Directory.CreateDirectory(resourceDir);
+
+            File.Copy(inputFilePath, resourcePath, true);
         }
 
         /// <summary>
@@ -662,7 +939,7 @@ namespace Jukebox
             foreach (KeyValuePair<string, object> kvp in oldBeatmap.data.properties)
             {
                 Debug.Log($"Converting metadata key {kvp.Key}, value {kvp.Value}");
-                metadata.CreateEntry(kvp.Key, kvp.Value);
+                metadata.AddEntry(kvp.Key, kvp.Value, out _);
                 Debug.Log($"Added entry {metadata[kvp.Key]} as {kvp.Key}");
             }
 

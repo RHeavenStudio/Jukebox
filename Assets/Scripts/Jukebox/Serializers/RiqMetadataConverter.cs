@@ -31,8 +31,7 @@ namespace Jukebox
             JObject metadataObj = obj["data"].Value<JObject>();
             foreach (KeyValuePair<string, JToken> kvp in metadataObj)
             {
-                RiqHashedKey key = RiqHashedKey.CreateFrom(kvp.Key);
-                metadata.CreateEntry(key.StringValue, kvp.Value.Value<object>());
+                metadata.AddEntry(kvp.Key, kvp.Value.Value<object>(), out _);
             }
 
             return metadata;

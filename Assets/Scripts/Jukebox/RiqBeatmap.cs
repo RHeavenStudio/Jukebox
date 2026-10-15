@@ -33,6 +33,16 @@ namespace Jukebox
         }
 
         /// <summary>
+        /// Find all entities of a specific datamodel.
+        /// </summary>
+        /// <param name="datamodelHash">RiqHashedKey representing the datamodel to search for</param>
+        /// <returns>List of <see cref="RiqEntity"/> objects with matching datamodel</returns>
+        public List<RiqEntity> FindAllEntitiesByDatamodel(RiqHashedKey datamodelHash)
+        {
+            return entities.FindAll(e => e.DatamodelHash.Hash == datamodelHash.Hash);
+        }
+
+        /// <summary>
         /// Create a new <see cref="RiqEntity"/> object and add it to the beatmap.
         /// </summary>
         /// <param name="entity">Entity to add</param>
